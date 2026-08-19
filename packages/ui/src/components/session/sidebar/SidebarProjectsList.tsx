@@ -272,7 +272,7 @@ function SidebarProjectsListComponent(props: Props): React.ReactNode {
           }}
         >
           <SortableContext items={props.sectionsForRender.map((section) => section.project.id)} strategy={verticalListSortingStrategy}>
-            {props.sectionsForRender.map((section) => {
+            {props.sectionsForRender.map((section, sectionIndex) => {
               const project = section.project;
               const projectKey = project.id;
               const projectLabel = getProjectLabel(project, props.homeDirectory);
@@ -320,6 +320,7 @@ function SidebarProjectsListComponent(props: Props): React.ReactNode {
                   showCreateButtons
                   openSidebarMenuKey={props.openSidebarMenuKey}
                   setOpenSidebarMenuKey={props.setOpenSidebarMenuKey}
+                  showTopSeparator={sectionIndex > 0}
                 >
                   {!isCollapsed ? (
                     <div className="space-y-0 pt-0.5 pb-0.5">
@@ -353,16 +354,24 @@ function SidebarProjectsListComponent(props: Props): React.ReactNode {
                                 project zone header; worktree and archived
                                 groups keep their own slim sortable sub-header. */}
                             {rootGroup ? props.renderGroupSessions(rootGroup, `${projectKey}:${rootGroup.id}`, projectKey, true, null, undefined, scrollContainerRef) : null}
-                            <SortableContext items={nestedGroups.map((group) => group.id)} strategy={verticalListSortingStrategy}>
-                              {nestedGroups.map((group) => {
-                                const groupKey = `${projectKey}:${group.id}`;
-                                return (
-                                  <SortableGroupItem key={group.id} id={group.id} disabled={props.isInlineEditing}>
-                                    {(dragHandleProps) => props.renderGroupSessions(group, groupKey, projectKey, false, dragHandleProps, undefined, scrollContainerRef)}
-                                  </SortableGroupItem>
-                                );
-                              })}
-                            </SortableContext>
+                            {/* Nested groups carry their own sub-header, so they
+                                indent as a block. The 20px step lands the
+                                sub-header's icon exactly on the project's own
+                                session text (16px header icon + 20px = 36px),
+                                so the worktree reads as one level below the
+                                project rather than floating between levels. */}
+                            <div className="pl-5">
+                              <SortableContext items={nestedGroups.map((group) => group.id)} strategy={verticalListSortingStrategy}>
+                                {nestedGroups.map((group) => {
+                                  const groupKey = `${projectKey}:${group.id}`;
+                                  return (
+                                    <SortableGroupItem key={group.id} id={group.id} disabled={props.isInlineEditing}>
+                                      {(dragHandleProps) => props.renderGroupSessions(group, groupKey, projectKey, false, dragHandleProps, undefined, scrollContainerRef)}
+                                    </SortableGroupItem>
+                                  );
+                                })}
+                              </SortableContext>
+                            </div>
                             <DragOverlay dropAnimation={null} />
                           </DndContext>
                         );

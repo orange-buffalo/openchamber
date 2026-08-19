@@ -38,6 +38,7 @@ Options:
   --desktop-selector <sel>  Require this element on the desktop surface
   --mobile-selector <sel>   Require this element on the mobile surface
   --theme <light|dark>      Color scheme for both captures (default: light)
+  --theme-id <id>           Named theme preset, such as nord-dark
   --wait-ms <milliseconds>  Extra settling time after setup (default: 250)
   --output <directory>      Output directory (default: .openchamber/screenshots)
   --headed                  Show Chromium instead of running headless
@@ -64,6 +65,7 @@ export const parseArgs = (argv) => {
     desktopSelector: null,
     mobileSelector: null,
     theme: "light",
+    themeId: null,
     waitMs: 250,
     output: path.join(repoRoot, SCREENSHOT_DIRECTORY),
     headless: true,
@@ -103,6 +105,9 @@ export const parseArgs = (argv) => {
       case "--theme":
         options.theme = optionValue(argv, index++, value);
         break;
+      case "--theme-id":
+        options.themeId = optionValue(argv, index++, value);
+        break;
       case "--wait-ms":
         options.waitMs = Number(optionValue(argv, index++, value));
         break;
@@ -123,6 +128,11 @@ export const parseArgs = (argv) => {
   }
   if (!["light", "dark"].includes(options.theme)) {
     throw new Error("--theme must be light or dark");
+  }
+  if (options.themeId !== null && !/^[a-z0-9][a-z0-9-]*$/i.test(options.themeId)) {
+    throw new Error(
+      "--theme-id must contain only letters, numbers, and hyphens",
+    );
   }
   if (!Number.isFinite(options.waitMs) || options.waitMs < 0) {
     throw new Error("--wait-ms must be a non-negative number");
@@ -296,9 +306,20 @@ const captureSurface = async ({
     deviceScaleFactor: 1,
   });
   try {
-    await context.addInitScript((theme) => {
-      localStorage.setItem("themeMode", theme);
-    }, options.theme);
+    await context.addInitScript(
+      ({ theme, themeId }) => {
+        localStorage.setItem("themeMode", theme);
+        if (themeId) {
+          // The theme system resolves the preset per color scheme, so pin the
+          // slot that matches the requested mode.
+          localStorage.setItem(
+            theme === "dark" ? "darkThemeId" : "lightThemeId",
+            themeId,
+          );
+        }
+      },
+      { theme: options.theme, themeId: options.themeId },
+    );
     const page = await context.newPage();
     page.on("pageerror", (error) => {
       console.error(
@@ -345,7 +366,9 @@ const captureSurface = async ({
         : options.mobileSelector;
     const requiredSelector = surfaceSelector ?? options.selector;
     if (requiredSelector) {
-      await page.locator(requiredSelector).waitFor({
+      // first(): the gate asserts the changed element rendered, so a selector
+      // that legitimately matches several rows must not fail strict mode.
+      await page.locator(requiredSelector).first().waitFor({
         state: "visible",
         timeout: DEFAULT_TIMEOUT_MS,
       });
@@ -381,6 +404,7 @@ const captureSurface = async ({
       surface: surface.name,
       scenario: options.scenario,
       theme: options.theme,
+      themeId: options.themeId,
       viewport: surface.viewport,
       title: await page.title(),
       url: safeUrl(page.url()),

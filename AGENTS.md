@@ -13,6 +13,7 @@ This checkout is a **fork** of `openchamber/openchamber`. Upstream `main` is alr
 - Keep the local diff minimal and localized. Do not reformat, restructure, or opportunistically clean upstream files; every unrelated touched line becomes a rebase conflict on the next sync.
 - Work on `main` and push there unless asked otherwise.
 - Skip CHANGELOG entries, PR-template handoff, and the upstream contribution workflow. If a change is intended for upstream, say so and that ceremony applies again to that change.
+- `FORK.md` records the intent behind every local change, so an upstream rebase can be resolved by re-applying intent instead of re-reading the diff. Add or update its entry in the same commit as the change.
 
 ## Runtime Boundaries
 

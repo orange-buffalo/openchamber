@@ -16,6 +16,10 @@ import "@openchamber/ui/styles/fonts";
 import { createConfiguredWebAPIs } from "./runtimeConfig";
 import { VisualFixtureApp } from "./visual-fixtures/VisualFixtureApp";
 
+// Sync hooks resolve an unscoped directory through the provider, and an empty
+// one throws. A fixed fixture path keeps those lookups valid offline.
+const FIXTURE_DIRECTORY = "/home/dev/openchamber";
+
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get("scenario") ?? "";
 const surface = params.get("surface");
@@ -35,7 +39,10 @@ createRoot(root).render(
     <I18nProvider>
       <ThemeSystemProvider>
         <ThemeProvider>
-          <SyncProvider sdk={opencodeClient.getSdkClient()} directory="">
+          <SyncProvider
+            sdk={opencodeClient.getSdkClient()}
+            directory={FIXTURE_DIRECTORY}
+          >
             <RuntimeAPIProvider apis={createConfiguredWebAPIs()}>
               <TooltipProvider delayDuration={300} skipDelayDuration={150}>
                 <ChatSurfaceProvider mode="default">

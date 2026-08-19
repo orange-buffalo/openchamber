@@ -121,6 +121,8 @@ export interface SortableProjectItemProps extends ProjectIdentityProps {
   setOpenSidebarMenuKey: (key: string | null) => void;
   /** Aggregated activity/attention indicator shown while the project is collapsed. */
   statusIndicator?: React.ReactNode;
+  /** Hairline above the zone header, separating this project from the one before it. */
+  showTopSeparator?: boolean;
 }
 
 export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
@@ -150,6 +152,7 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
   openSidebarMenuKey,
   setOpenSidebarMenuKey,
   statusIndicator = null,
+  showTopSeparator = false,
 }) => {
   const { t } = useI18n();
   const stickyZoneHeaders = useSessionDisplayStore((state) => state.stickyZoneHeaders);
@@ -236,6 +239,17 @@ export const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
     >
       {!hideHeader ? (
         <>
+          {/* Inset to the header's own content edge: a full-bleed rule would
+              read as a table row divider rather than a zone break. */}
+          {showTopSeparator ? (
+            <div
+              className="-mt-1.5 -ml-2.5 -mr-2 pl-4 pr-3.5 pb-2"
+              aria-hidden="true"
+            >
+              <div className="h-px bg-border/60" />
+            </div>
+          ) : null}
+
           {isDesktopShell && (
             <div
               ref={sentinelRef}

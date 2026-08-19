@@ -137,7 +137,7 @@ export function SidebarActivitySections(props: Props): React.ReactNode {
   return (
     // No top padding: the recent header must start flush with the scroll
     // edge, otherwise it visually "bumps" a few pixels before sticking.
-    <div className={cn(flatVariant ? 'space-y-0.5 pb-2' : 'space-y-2 pb-2')}>
+    <div className={cn(flatVariant ? 'space-y-0.5 pb-2' : 'space-y-2 pb-0.5')}>
       {visibleSections.map((section) => {
         const isCollapsed = collapsed.has(section.key);
         const visibleLimit = Math.max(
@@ -223,6 +223,13 @@ export function SidebarActivitySections(props: Props): React.ReactNode {
           </div>
         );
       })}
+      {/* Closes the recent zone against the first project below it. Rendered
+          here rather than on the project so it only exists when recent does. */}
+      {!flatVariant ? (
+        <div className="-ml-2.5 -mr-2 pl-4 pr-3.5 pt-1" aria-hidden="true">
+          <div className="h-px bg-border/60" />
+        </div>
+      ) : null}
     </div>
   );
 }

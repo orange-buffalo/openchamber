@@ -3,6 +3,8 @@ import type { TextPart } from "@opencode-ai/sdk/v2";
 
 import AssistantTextPart from "@openchamber/ui/components/chat/message/parts/AssistantTextPart";
 
+import { SidebarProjectsFixture } from "./sidebarProjectsFixture";
+
 type VisualSurface = "desktop" | "mobile";
 
 const assistantResponse: TextPart = {
@@ -42,6 +44,8 @@ const evidence = await capture({
 const scenarios = {
   "assistant-response": {
     title: "Assistant response",
+    chrome: true as const,
+    readySelector: "[data-markdown-content]",
     render: () => (
       <AssistantTextPart
         part={assistantResponse}
@@ -51,6 +55,13 @@ const scenarios = {
         chatRenderMode="sorted"
       />
     ),
+  },
+  "sidebar-projects": {
+    title: "Session sidebar projects",
+    chrome: false as const,
+    // Group bodies are the last thing the project zones render.
+    readySelector: ".oc-group",
+    render: () => <SidebarProjectsFixture />,
   },
 };
 
@@ -78,19 +89,35 @@ export function VisualFixtureApp({
     const content = contentRef.current;
     if (!content) return;
 
-    if (content.querySelector("[data-markdown-content]")) {
+    if (content.querySelector(fixture.readySelector)) {
       setReady(true);
       return;
     }
 
     const observer = new MutationObserver(() => {
-      if (!content.querySelector("[data-markdown-content]")) return;
+      if (!content.querySelector(fixture.readySelector)) return;
       setReady(true);
       observer.disconnect();
     });
     observer.observe(content, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [scenario]);
+  }, [fixture.readySelector, scenario]);
+
+  // Chrome-less scenarios render a real product surface (a sidebar, a panel)
+  // that owns its own width and background; the captioned card would misframe
+  // it and change the very spacing under review.
+  if (!fixture.chrome) {
+    return (
+      <main
+        className="flex min-h-dvh items-start bg-background text-foreground"
+        data-visual-fixture={scenario}
+        data-visual-surface={surface}
+        data-visual-fixture-ready={ready ? "" : undefined}
+      >
+        <div ref={contentRef}>{fixture.render()}</div>
+      </main>
+    );
+  }
 
   return (
     <main
