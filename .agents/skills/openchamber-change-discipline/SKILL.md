@@ -62,24 +62,24 @@ For persisted data, require a migration only when existing stored data needs con
 
 Do not hide a required architectural migration behind a local heuristic. Do not turn a local fix into a speculative rewrite.
 
-## Validation Matrix
+## Validation
 
-| Change | Minimum validation |
+`AGENTS.md` owns the default validation policy for this fork: scope checks to the
+packages the diff touches. This skill adds only the risk-specific extras.
+
+| Change | Additional validation |
 |---|---|
-| Executable source | Focused tests plus package-scoped type-check and lint |
-| Cross-workspace/shared contract | Workspace-wide type-check and lint plus affected builds/tests |
-| Added/deleted/renamed source file, export/type/entrypoint/import shape | `bun run dead-code` in addition to relevant checks |
-| Persisted or external contract | Compatibility and round-trip tests plus the applicable failure/ordering cases: missing-versus-empty, malformed data, stale reads versus newer mutations, out-of-order writes, lifecycle handling for debounced writes, conversion, and failed-write/migration rollback |
-| Dependency or lockfile | Workspace-wide checks and affected builds |
-| Generated asset | Regeneration check plus consumer build/test |
-| Docs-only or isolated config | Narrow syntax/schema/link validation; do not run unrelated full suites |
-| Platform/runtime behavior | Relevant runtime build or manual/integration check; static checks are insufficient |
+| Persisted or external contract | Round-trip and compatibility tests plus the applicable failure cases: missing-versus-empty, malformed data, stale reads versus newer mutations, out-of-order writes, debounced-write lifecycle, and failed-write/migration rollback |
+| Cross-workspace/shared contract | Type-check the workspace and test the real consumers you traced, not every package |
+| Dependency or lockfile | Workspace-wide checks and the affected build |
+| Generated asset | Regeneration check plus one consumer build/test |
+| Platform/runtime behavior | The relevant runtime build or manual check; static checks are insufficient |
 
-Use a sufficiently long timeout for broad checks. Report exactly what ran and what did not.
+For type-only shared contracts, validate compile-time consumers. Add runtime
+serialization tests when the contract crosses a process, persistence, network,
+or untyped JavaScript boundary.
 
-Choose affected builds/tests by tracing real consumers and runtime boundaries, not by running everything reflexively.
-
-For type-only shared contracts, validate compile-time consumers. Add runtime serialization tests when the contract crosses a process, persistence, network, or untyped JavaScript boundary.
+Report exactly what ran and what did not.
 
 ## Test Design
 
@@ -94,5 +94,5 @@ For type-only shared contracts, validate compile-time consumers. Add runtime ser
 - Implement the behavior end to end, including rollback and cleanup.
 - Run focused regression tests for the changed contract.
 - Preserve unrelated changes encountered in shared files.
-- Re-read the owning docs and update them when the implementation changed their truth.
-- Perform a final simplification pass: remove speculative branches, shallow wrappers, stale compatibility, and names that do not clarify intent.
+- Update an owning doc only when the change made something it states untrue.
+- Remove speculative branches, shallow wrappers, and stale compatibility you introduced.

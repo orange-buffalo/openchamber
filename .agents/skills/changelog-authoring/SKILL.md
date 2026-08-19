@@ -7,6 +7,10 @@ compatibility: opencode
 
 ## Overview
 
+This fork does not maintain CHANGELOG entries; local customizations are not
+released from here. Follow this skill only for a change being prepared for
+upstream, or when the user explicitly asks for a changelog entry.
+
 Draft user-facing bullet points for the `## [Unreleased]` section that summarize changes since the latest git tag up to `HEAD`.
 
 Two files are maintained:

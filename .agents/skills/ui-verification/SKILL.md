@@ -5,12 +5,15 @@ description: Use when implementing or reviewing any user-visible rendered UI or 
 
 # UI Verification
 
-`CONTRIBUTING.md` under **Visual Evidence** is the evidence contract. This skill
-owns the agent workflow for satisfying it.
+This fork does not require visual evidence on every UI change. Capture it when
+the user asks for a screenshot or visual proof, or when a change is visual
+enough that you cannot otherwise tell whether it worked. This skill owns that
+workflow. (`CONTRIBUTING.md` describes the stricter upstream contract, which
+applies only to changes headed upstream.)
 
-## Required Evidence Loop
+## Evidence Loop
 
-After the final UI-affecting edit:
+When capturing evidence, after the final UI-affecting edit:
 
 1. Add or select a deterministic visual fixture scenario that renders the real
    production components in the exact changed state. Fixture data may stub any
@@ -28,13 +31,12 @@ After the final UI-affecting edit:
    by the command. Refresh them after every later edit that can affect the
    demonstrated state.
 
-Capture a meaningful before state when one exists. Styling and surface changes
-need both light and dark runs. Motion, focus, gestures, drag-and-drop, and
-multi-step behavior need a short recording in addition to representative stills.
+Capture a before state when the comparison is the point. Add light and dark
+runs, or a short recording for motion and gesture work, when a single still
+would not show the change.
 
-Completion means the final response contains inspected, current evidence for
-every affected desktop and mobile state, not merely paths to files that were
-created.
+If you captured evidence, inspect it and include it; do not report paths to
+images you did not look at.
 
 ## Fixture Scenarios
 

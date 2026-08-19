@@ -4,21 +4,15 @@
 
 OpenChamber provides shared web, desktop, VS Code, hosted-mobile, and native-mobile UI surfaces for OpenCode.
 
-This file contains only always-on repository rules and routing. Detailed workflows belong to project skills and module documentation.
+This checkout is a **fork** of `openchamber/openchamber`. Upstream `main` is already tested and reviewed; this fork adds local customization on top of it. Optimize for a small, rebase-friendly delta and a fast edit loop, not for upstream contribution ceremony.
 
-## Instruction Order
+## Fork Mode
 
-These steps are mandatory. Before editing, you **MUST**:
-
-1. Follow this root guide.
-2. Load every matching project skill and every task-required reference from
-   those skills.
-3. Read the nearest `DOCUMENTATION.md` and package `README.md` when present.
-4. Follow local code and test precedent.
-
-If these sources materially conflict, stop and resolve the conflict instead of silently choosing one.
-Do not start editing when a matching skill or required reference has not been
-read. Skill loading is a required part of the task, not optional guidance.
+- `origin` is the fork. `upstream` is `https://github.com/openchamber/openchamber.git`.
+- Treat upstream code as trusted and already validated. Validate the local delta, not the baseline. Never re-verify untouched packages.
+- Keep the local diff minimal and localized. Do not reformat, restructure, or opportunistically clean upstream files; every unrelated touched line becomes a rebase conflict on the next sync.
+- Work on `main` and push there unless asked otherwise.
+- Skip CHANGELOG entries, PR-template handoff, and the upstream contribution workflow. If a change is intended for upstream, say so and that ceremony applies again to that change.
 
 ## Runtime Boundaries
 
@@ -44,9 +38,10 @@ Shared contracts must define intentional behavior for every applicable runtime: 
 - Keep changes minimal and preserve unrelated worktree changes.
 - Enforce security and correctness in core/runtime logic, not only UI visibility or prompts.
 - Keep entrypoints and bridges thin; place domain logic in focused owning modules.
-- Update owning documentation when module ownership, contracts, or invariants change.
 
 ## Correctness Invariants
+
+These are the failures that actually bite in this codebase. They apply to fork code too.
 
 - Prefer authoritative state over heuristics.
 - Derive live activity from live channels, not persisted history.
@@ -56,84 +51,47 @@ Shared contracts must define intentional behavior for every applicable runtime: 
 - One failed entity must not erase or block unrelated complete entities.
 - Runtime-specific differences must be intentional and visible in code.
 
-## Documentation Discovery
-
-Before changing a module, search for the nearest `DOCUMENTATION.md`; before package-level work, read its `README.md`. Discover docs dynamically under `packages/**/DOCUMENTATION.md` rather than relying on a static exhaustive map.
-
-High-value anchors:
-
-- Sync: `packages/ui/src/sync/DOCUMENTATION.md`
-- Stores: `packages/ui/src/stores/DOCUMENTATION.md`
-- CLI: `packages/web/bin/lib/DOCUMENTATION.md`
-- Performance measurement tooling: `scripts/perf/DOCUMENTATION.md`
-- VS Code runtime: `packages/vscode/src/DOCUMENTATION.md`
-- Electron: `packages/electron/README.md`
-- Mobile: `packages/mobile/README.md`
-
-## Project Skills
-
-Project skills live under `.agents/skills/*/SKILL.md`. You **MUST** load every
-skill matching the character of the change before editing; multiple skills may
-apply, including companion skills required by another skill. Read every
-task-required reference named by those skills. Skills are canonical for their
-detailed workflows and checklists. Treating this table as optional advice is a
-process violation.
-
-| Trigger                                                                                                                                 | Required skill                  |
-| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Source/dependency changes, exports or package contracts, build/generated assets, or module ownership                                    | `openchamber-change-discipline` |
-| CLI commands, prompts, terminal output, non-TTY, `--quiet`, or `--json` behavior                                                        | `clack-cli-patterns`            |
-| Shared UI data access, OpenCode SDK or server routes, `RuntimeAPIs`, runtime auth/URLs, bridges, or runtime switching                   | `ui-api-decoupling`             |
-| Electron main/preload, IPC, native UI, updater, deep links, SSH/tunnels, packaging, or child processes                                  | `desktop-shell`                 |
-| Session sync, bootstrap/reconnect, reducers, polling, optimistic state, queues, live status, reconciliation, or directory-scoped caches | `sync-state-invariants`         |
-| Render/store/event hot paths, large lists, caches/indexes, or reported lag, freezes, CPU/memory, startup, or performance regressions    | `performance-engineering`       |
-| WebSocket, SSE, streaming transport, runtime transport internals, or private relay                                                      | `relay-transport`               |
-| UI components, styling, colors, buttons, or icons                                                                                       | `theme-system`                  |
-| User-facing or accessible UI text, labels, aria, toasts, dialogs, or navigation copy                                                    | `locale-ui-patterns`            |
-| Settings UI, settings dialogs, configuration surfaces, or settings search                                                               | `settings-ui-patterns`          |
-| Sortable or drag-to-reorder behavior, especially `@dnd-kit` and touch/wrapping layouts                                                  | `drag-to-reorder`               |
-| iOS Simulator build, launch, preview, gestures, or `serve-sim` control                                                                  | `serve-sim`                     |
-| User-visible rendered UI or interaction changes requiring screenshots, recordings, or visual proof                                      | `ui-verification`               |
-| Drafting or updating user-facing CHANGELOG entries for the `[Unreleased]` section (main app or VS Code extension)                       | `changelog-authoring`           |
-| Creating or editing skills, `AGENTS.md`, or docs reached through agent instructions/context pointers                                    | `writing-for-agents`            |
-
-Pure code-reading or explanation does not require implementation skills unless needed to interpret a specialized subsystem.
-
-### Skill Ownership
-
-Keep each cross-cutting rule with one canonical owner; companion skills add only domain-specific consequences and a pointer to that owner.
-
-| Concern                                                                      | Canonical skill                 |
-| ---------------------------------------------------------------------------- | ------------------------------- |
-| Change scope, abstraction discipline, and validation risk                    | `openchamber-change-discipline` |
-| State authority, reconciliation, optimistic state, and lifecycle correctness | `sync-state-invariants`         |
-| Measurement, hot-path cost, caching performance, and optimization evidence   | `performance-engineering`       |
-| Shared UI API and runtime boundaries                                         | `ui-api-decoupling`             |
-| WebSocket/SSE and private relay mechanics                                    | `relay-transport`               |
-| Electron native ownership and privilege boundary                             | `desktop-shell`                 |
-| UI tokens, primitives, icons, and animation styling                          | `theme-system`                  |
-| Settings composition and search behavior                                     | `settings-ui-patterns`          |
-| User-facing text and localization                                            | `locale-ui-patterns`            |
-| Desktop/mobile screenshots, recordings, and visual evidence                  | `ui-verification`               |
-| Agent-facing document structure and context pointers                         | `writing-for-agents`            |
-
-Before adding guidance to a skill, identify its canonical owner. If another skill owns the rule, add a precise companion pointer and only the local consequence; do not copy the rule.
-
 ## Validation
 
-- Use `package.json` scripts as the command source of truth.
-- Prefer focused tests and package-scoped type-check/lint for executable source changes.
-- Use workspace-wide checks for cross-workspace contracts, root tooling, dependencies, or shared generated assets.
-- Run `bun run dead-code` when source files are added/deleted/renamed or exports, types, entrypoints, or import shape change; inspect its report because it is non-blocking.
-- Run `bunx oxlint <changed-paths>` on TypeScript/JavaScript files you created or substantially rewrote. This runs the vendored `anti-slop` plugin, which rejects low-evidence typing: unjustified type assertions, `unknown`/`object`/`Record<string, unknown>` contracts, ad hoc `typeof` narrowing, and module mocking. Fix findings in code you authored. Pre-existing findings elsewhere are a known backlog: do not mass-fix them, and never silence a rule, weaken severity, or launder types to make the check pass.
-- Do not assume TypeScript/lint covers server JS, CLI JS, Electron helpers, or native behavior; run focused tests, syntax checks, builds, or runtime validation for the touched surface.
-- For docs-only or isolated config changes, run the narrowest relevant validation.
-- Report exactly what was and was not validated. Static checks alone do not prove runtime, relay, performance, or platform correctness.
+Scope checks to what the diff touches. Full-workspace sweeps exist but are rarely the right default.
 
-## Pull Request Handoff
+| Touched | Run |
+| --- | --- |
+| `packages/ui` source | `bun run type-check:ui`, `bun run lint:ui`, `bun run --cwd packages/ui test` |
+| `packages/web` source | `bun run type-check:web`, `bun run lint:web`, `bun run --cwd packages/web test` |
+| `packages/electron` / `packages/vscode` / `packages/mobile` | the matching `type-check:*` / `lint:*` and package test script |
+| Root scripts (`scripts/*.mjs`) | `node --test <file>` and `bunx oxlint <changed-paths>` |
+| Shared contract consumed by several packages | `bun run type-check` (all), plus tests for the real consumers |
+| Docs, config, or comments only | Nothing, or the narrowest syntax/schema check |
 
-Before creating or updating a pull request, read `CONTRIBUTING.md` and
-`.github/PULL_REQUEST_TEMPLATE.md`. Complete the template with concrete,
-current evidence for the final PR HEAD; do not make the reviewer reconstruct
-intent, affected surfaces, applicable guidance, validation, visual behavior,
-or failure and rollback considerations from the diff alone.
+Measured full-sweep costs, for when a broad check is genuinely warranted: `type-check` ~51s, `lint` ~17s, `test` ~33s. Cheap enough to run before a push you are unsure about; still not a reason to run them for a one-file edit.
+
+Optional, not required: `bun run dead-code`, `bun run docs:validate`, and `bun run ui:evidence`. Reach for them when the change plausibly breaks what they check, or when asked.
+
+Report exactly what was and was not validated. Static checks alone do not prove runtime, relay, performance, or platform correctness.
+
+## Reference Material
+
+Read these when you need them, not as a precondition for editing. Skip them when the change is small, local, and you can already see the pattern in nearby code.
+
+Detailed subsystem workflows live in `.agents/skills/*/SKILL.md`. Load one when you are about to change that subsystem and the local precedent is not obvious:
+
+| Subsystem | Skill |
+| --- | --- |
+| Change scope, abstraction, validation risk | `openchamber-change-discipline` |
+| Session sync, bootstrap/reconnect, reducers, optimistic state, reconciliation | `sync-state-invariants` |
+| Shared UI data access, OpenCode SDK, `RuntimeAPIs`, runtime auth/URLs, bridges | `ui-api-decoupling` |
+| WebSocket, SSE, streaming transport, private relay | `relay-transport` |
+| Electron main/preload, IPC, updater, packaging, child processes | `desktop-shell` |
+| Render/store/event hot paths, large lists, caches, reported lag | `performance-engineering` |
+| UI components, styling, colors, buttons, icons | `theme-system` |
+| User-facing UI text, labels, aria, toasts, dialogs | `locale-ui-patterns` |
+| Settings UI, dialogs, configuration surfaces, settings search | `settings-ui-patterns` |
+| Sortable / drag-to-reorder, `@dnd-kit`, touch and wrapping layouts | `drag-to-reorder` |
+| CLI commands, prompts, terminal output, `--quiet` / `--json` | `clack-cli-patterns` |
+| iOS Simulator build, launch, preview, `serve-sim` | `serve-sim` |
+| Screenshots or visual proof, when asked for them | `ui-verification` |
+
+Module docs: search for the nearest `packages/**/DOCUMENTATION.md` when changing a subsystem whose invariants are not visible in the code you are reading. High-value anchors: `packages/ui/src/sync/DOCUMENTATION.md`, `packages/ui/src/stores/DOCUMENTATION.md`, `packages/web/bin/lib/DOCUMENTATION.md`, `packages/vscode/src/DOCUMENTATION.md`, `packages/electron/README.md`, `packages/mobile/README.md`.
+
+Update a doc only when your change makes something it states untrue.
