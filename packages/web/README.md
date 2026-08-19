@@ -18,6 +18,13 @@ Or install manually: `bun add -g @openchamber/web` (or npm, pnpm, yarn).
 
 > **Prerequisites:** [OpenCode CLI](https://opencode.ai) installed, Node.js 22+.
 
+### Container build artifact
+
+Every successful build of the fork's `main` branch publishes
+`ghcr.io/orange-buffalo/openchamber-web-artifact:latest`. The image is a
+non-runnable build artifact containing `/openchamber.tgz` and `/SHA256SUMS` for
+use as a Docker build stage. A commit SHA tag is also published for traceability.
+
 ## Usage
 
 ```bash

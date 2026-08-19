@@ -1,0 +1,4 @@
+FROM scratch
+
+COPY openchamber.tgz /openchamber.tgz
+COPY SHA256SUMS /SHA256SUMS
