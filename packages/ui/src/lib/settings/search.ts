@@ -171,13 +171,6 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     isAvailable: (ctx) => !ctx.isMobile && !ctx.isVSCode,
   },
   {
-    id: 'appearance.usage-reports',
-    page: 'general',
-    titleKey: 'settings.openchamber.visual.field.sendAnonymousUsageReports',
-    descriptionKey: 'settings.openchamber.visual.field.sendAnonymousUsageReportsHint',
-    keywords: ['telemetry', 'analytics'],
-  },
-  {
     id: 'chat.render-mode',
     page: 'chat',
     titleKey: 'settings.openchamber.visual.section.chatRenderMode',

@@ -110,7 +110,6 @@ openchamber tunnel start --provider cloudflare --mode quick --qr
 openchamber startup enable
 openchamber logs
 openchamber stop
-openchamber update
 ```
 
 OpenChamber binds to localhost by default. Use `--lan` only on a trusted network and protect browser access with `--ui-password`.

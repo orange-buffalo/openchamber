@@ -795,7 +795,6 @@ interface UIStore {
   showSplitAssistantMessageActions: boolean;
   allowPromptingSubagentSessions: boolean;
   isExpandedInput: boolean;
-  reportUsage: boolean;
   shortcutOverrides: Record<string, ShortcutCombo>;
   fileEditorKeymap: FileEditorKeymap;
 
@@ -978,7 +977,6 @@ interface UIStore {
   setExpandedInput: (value: boolean) => void;
   openMultiRunLauncher: () => void;
   openMultiRunLauncherWithPrompt: (prompt: string) => void;
-  setReportUsage: (value: boolean) => void;
   setShortcutOverride: (actionId: string, combo: ShortcutCombo) => void;
   clearShortcutOverride: (actionId: string) => void;
   resetAllShortcutOverrides: () => void;
@@ -1137,7 +1135,6 @@ export const useUIStore = create<UIStore>()(
         allowPromptingSubagentSessions: false,
         draftStartersVisible: true,
         isExpandedInput: false,
-        reportUsage: true,
         shortcutOverrides: {},
         fileEditorKeymap: 'default',
 
@@ -2416,9 +2413,6 @@ export const useUIStore = create<UIStore>()(
         },
         setAllowPromptingSubagentSessions: (value) => {
           set({ allowPromptingSubagentSessions: value });
-        },
-        setReportUsage: (value) => {
-          set({ reportUsage: value });
         },
         viewPagerPage: 'center',
         setViewPagerPage: (page: 'left' | 'center' | 'right') => {

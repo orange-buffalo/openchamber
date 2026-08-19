@@ -1,8 +1,6 @@
 import React from 'react';
 
-import { AboutSettings } from '@/components/sections/openchamber/AboutSettings';
 import { OpenCodeUpdateToast } from '@/components/update/OpenCodeUpdateToast';
-import { MobileAppUpdateToast } from '@/components/update/MobileAppUpdateToast';
 import { ConfigUpdateOverlay } from '@/components/ui/ConfigUpdateOverlay';
 import { Button } from '@/components/ui/button';
 import { OpenChamberLogo } from '@/components/ui/OpenChamberLogo';
@@ -16,7 +14,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { usePushVisibilityBeacon } from '@/hooks/usePushVisibilityBeacon';
 import { useRouter } from '@/hooks/useRouter';
-import { useUpdatePolling } from '@/hooks/useUpdatePolling';
 import { useWindowTitle } from '@/hooks/useWindowTitle';
 import { opencodeClient } from '@/lib/opencode/client';
 import type { RuntimeAPIs } from '@/lib/api/types';
@@ -41,7 +38,6 @@ import {
   worktreeMapsEqual,
 } from '@/lib/worktrees/worktreeManager';
 import { useUIStore } from '@/stores/useUIStore';
-import { useUpdateStore } from '@/stores/useUpdateStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { SyncProvider } from '@/sync/sync-context';
 
@@ -97,7 +93,7 @@ const NATIVE_RESUME_SYNC_EVENT_THROTTLE_MS = 1_000;
     footer. Exactly one can be open at a time — opening another replaces it,
     closing returns to the chat. The sessions drawer and the workspace drawer
     (Changes / Files / Terminal / Notes / MCP) are separate layers. */
-type MobileSurface = 'instances' | 'settings' | 'update';
+type MobileSurface = 'instances' | 'settings';
 
 const MobileShell: React.FC<{ onActiveConnectionDeleted: () => void }> = ({ onActiveConnectionDeleted }) => {
   const { t } = useI18n();
@@ -115,8 +111,6 @@ const MobileShell: React.FC<{ onActiveConnectionDeleted: () => void }> = ({ onAc
   const [pendingChangesDiff, setPendingChangesDiff] = React.useState<{ path: string; staged: boolean } | null>(null);
   const setSettingsPage = useUIStore((state) => state.setSettingsPage);
   const wideChatLayoutEnabled = useUIStore((state) => state.wideChatLayoutEnabled);
-  const updateAvailable = useUpdateStore((state) => state.available);
-  const updateRuntimeType = useUpdateStore((state) => state.runtimeType);
   const showCapacitorOnlyFeatures = React.useMemo(() => isCapacitorMobileApp(), []);
   const mcpServers = useMcpConfigStore((state) => state.mcpServers);
   const setMcpDraft = useMcpConfigStore((state) => state.setMcpDraft);
@@ -251,7 +245,7 @@ const MobileShell: React.FC<{ onActiveConnectionDeleted: () => void }> = ({ onAc
         if (isTabletLayout) setSidebarOpen(true);
         else setSessionsSheetOpen(true);
       },
-      openView: (target: 'files' | 'mcp' | 'instances' | 'update') => {
+      openView: (target: 'files' | 'mcp' | 'instances') => {
         if (target === 'files') {
           openFilesSurface();
           return;
@@ -311,27 +305,19 @@ const MobileShell: React.FC<{ onActiveConnectionDeleted: () => void }> = ({ onAc
 
   useNativeAndroidBackButton(handleNativeBack);
 
-  // Server updates are actionable from a browser (hosted mobile) but not from
-  // the Capacitor shell — the native app updates through the store, and the
-  // server it CONNECTS to is updated elsewhere.
-  const showUpdateItem = !showCapacitorOnlyFeatures
-    && updateAvailable
-    && (updateRuntimeType === 'desktop' || updateRuntimeType === 'web');
-
   // Tablets pack the app-level pages (settings, instances, a plan) into a
   // centered dialog instead of covering the whole screen.
   const surfaceVariant = isTabletLayout ? 'dialog' as const : 'fullscreen' as const;
 
   // App-level footer of the sessions list — the same on a phone drawer and a
-  // tablet sidebar: connected instance, pending web update, settings.
+  // tablet sidebar: connected instance, settings.
   const sessionsFooter = React.useMemo(
     () => ({
       instanceLabel: showCapacitorOnlyFeatures ? getAutoConnectTargetLabel() : null,
       onOpenInstances: showCapacitorOnlyFeatures ? () => openSurface('instances') : undefined,
       onOpenSettings: () => openSettingsSurface('nav'),
-      onOpenUpdate: showUpdateItem ? () => openSurface('update') : undefined,
     }),
-    [openSettingsSurface, openSurface, showCapacitorOnlyFeatures, showUpdateItem],
+    [openSettingsSurface, openSurface, showCapacitorOnlyFeatures],
   );
 
   const openMcpCreateSettings = React.useCallback(() => {
@@ -580,30 +566,13 @@ const MobileShell: React.FC<{ onActiveConnectionDeleted: () => void }> = ({ onAc
                 forceMobile
                 isWindowed
                 initialMobileStage={settingsInitialMobileStage}
-                // About exists for server updates — meaningful in a browser
-                // (hosted mobile), not in the Capacitor shell (store updates).
+                // About reports the connected server's version, which the
+                // Capacitor shell does not surface.
                 visiblePageSlugs={MOBILE_SETTINGS_PAGES.filter(
                   (page) => !(showCapacitorOnlyFeatures && page === 'about'),
                 )}
                 onClose={closeSurface}
               />
-            </ErrorBoundary>
-          </MobileFullscreenSurface>
-        ) : null}
-
-        {activeSurface === 'update' ? (
-          <MobileFullscreenSurface
-            open
-            variant={surfaceVariant}
-            dialogAlign="app"
-            onClose={closeSurface}
-            ariaLabel={t('mobile.menu.update')}
-            title={t('mobile.menu.update')}
-          >
-            <ErrorBoundary>
-              <div className="h-full overflow-auto px-5 py-4">
-                <AboutSettings initialUpdateDialogOpen />
-              </div>
             </ErrorBoundary>
           </MobileFullscreenSurface>
         ) : null}
@@ -1113,7 +1082,6 @@ export function MobileApp({ apis }: MobileAppProps) {
 
   useAppFontEffects();
   usePushVisibilityBeacon({ enabled: true });
-  useUpdatePolling();
   useWindowTitle();
   useRouter();
   // APNs is the only notification channel on the native app (background-capable,
@@ -1253,7 +1221,6 @@ export function MobileApp({ apis }: MobileAppProps) {
               ) : null}
               <SyncAppEffects embeddedBackgroundWorkEnabled={isInitialized} />
               <OpenCodeUpdateToast />
-              <MobileAppUpdateToast />
               <MobileShell onActiveConnectionDeleted={() => {
                 switchRuntimeEndpoint({ apiBaseUrl: '', clientToken: null, runtimeKey: 'mobile-disconnected' });
                 setConnectionEpoch((value) => value + 1);

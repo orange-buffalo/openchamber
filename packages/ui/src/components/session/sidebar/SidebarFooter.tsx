@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
@@ -8,9 +7,7 @@ type Props = {
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
   onOpenAbout: () => void;
-  onOpenUpdate: () => void;
   showRuntimeButtons?: boolean;
-  showUpdateButton?: boolean;
 };
 
 const footerButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50';
@@ -19,13 +16,11 @@ export function SidebarFooter({
   onOpenSettings,
   onOpenShortcuts,
   onOpenAbout,
-  onOpenUpdate,
   showRuntimeButtons = true,
-  showUpdateButton = true,
 }: Props): React.ReactNode {
   const { t } = useI18n();
 
-  if (!showRuntimeButtons && !showUpdateButton) {
+  if (!showRuntimeButtons) {
     return null;
   }
 
@@ -58,17 +53,6 @@ export function SidebarFooter({
             <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.aboutOpenChamber')}</p></TooltipContent>
           </Tooltip>
         </>
-      ) : null}
-      {showUpdateButton ? (
-        <Button
-          type="button"
-          variant="default"
-          size="xs"
-          className="ml-auto border-[var(--status-info-border)] bg-[var(--status-info-background)] text-[var(--status-info)] hover:bg-[var(--status-info-background)]/80 hover:text-[var(--status-info)] dark:border-[var(--status-info-border)] dark:bg-[var(--status-info-background)] dark:hover:bg-[var(--status-info-background)]/80"
-          onClick={onOpenUpdate}
-        >
-          {t('sessions.sidebar.footer.actions.update')}
-        </Button>
       ) : null}
     </div>
   );

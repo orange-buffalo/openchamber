@@ -58,7 +58,6 @@ const { handleSystemBridgeMessage } = await import('./bridge-system-runtime.ts')
 const deps = {
   resolveUserPath: (value) => value,
   fetchModelsMetadata: async () => ({}),
-  updateCheckUrl: 'https://example.com/update-check',
   clientReloadDelayMs: 800,
 };
 

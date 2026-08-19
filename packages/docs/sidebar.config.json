@@ -696,21 +696,6 @@
             "ja": "SSH ホストとプロキシ",
             "de": "SSH-Hosts und Proxying"
           }
-        },
-        {
-          "label": "Updates",
-          "link": "/updates/",
-          "translations": {
-            "uk": "Оновлення",
-            "zh-CN": "更新",
-            "es": "Actualizaciones",
-            "pt-BR": "Atualizações",
-            "ko": "업데이트",
-            "pl": "Aktualizacje",
-            "fr": "Mises à jour",
-            "ja": "更新",
-            "de": "Aktualisierungen"
-          }
         }
       ]
     },

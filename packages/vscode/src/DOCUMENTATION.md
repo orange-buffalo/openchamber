@@ -65,7 +65,7 @@ The webview CSP permits `blob:` only for `worker-src` so shared UI parsers can r
   - Settings read/write and OpenCode skills discovery via API for bridge consumers.
 
 - `bridge-system-runtime.ts`
-  - System/editor/provider/quota/notification/update-check message handlers.
+  - System/editor/provider/quota/notification message handlers.
   - Includes session activity snapshot bridge handler used by webview parity routes (`/api/session-activity`).
   - Includes Zen utility model parity handler used by shared notification settings (`/api/zen/models`).
   - Owns managed OpenCode upgrade status and mutation handlers, including capability reporting, upgrade serialization, and process restart after a successful upgrade.

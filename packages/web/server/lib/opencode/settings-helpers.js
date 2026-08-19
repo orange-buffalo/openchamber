@@ -801,9 +801,6 @@ export const createSettingsHelpers = (dependencies) => {
     }
 
     // Usage reporting opt-out (default: true/enabled)
-    if (typeof candidate.reportUsage === 'boolean') {
-      result.reportUsage = candidate.reportUsage;
-    }
 
     // Global behavior prompt — synced to ~/.config/opencode/AGENTS.md
     if (typeof candidate.globalBehaviorPrompt === 'string') {

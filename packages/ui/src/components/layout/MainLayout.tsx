@@ -23,7 +23,6 @@ import { DrawerProvider } from '@/contexts/DrawerContext';
 
 import { useUIStore } from '@/stores/useUIStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
-import { useUpdatePolling } from '@/hooks/useUpdatePolling';
 import { useDeviceInfo } from '@/lib/device';
 import { cn } from '@/lib/utils';
 import { lazyWithChunkRecovery } from '@/lib/chunkLoadRecovery';
@@ -243,7 +242,6 @@ export const MainLayout: React.FC = () => {
         setMobileRightSidebarOpen(false);
     }, [isMobile, isSettingsDialogOpen, setMobileSessionPanelOpen]);
 
-    useUpdatePolling();
 
     React.useEffect(() => {
         const previous = useUIStore.getState().isMobile;

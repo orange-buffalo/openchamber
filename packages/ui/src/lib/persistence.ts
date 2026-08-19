@@ -577,7 +577,6 @@ const materializeAuthoritativeUiSettings = (settings: DesktopSettings): DesktopS
     wideChatLayoutEnabled: defaults.wideChatLayoutEnabled,
     showSplitAssistantMessageActions: defaults.showSplitAssistantMessageActions,
     draftStartersVisible: defaults.draftStartersVisible,
-    reportUsage: defaults.reportUsage,
     fontSize: defaults.fontSize,
     terminalFontSize: defaults.terminalFontSize,
     terminalShell: defaults.terminalShell,
@@ -848,9 +847,6 @@ const applyDesktopUiPreferences = (settings: DesktopSettings) => {
     && settings.showSplitAssistantMessageActions !== store.showSplitAssistantMessageActions
   ) {
     store.setShowSplitAssistantMessageActions(settings.showSplitAssistantMessageActions);
-  }
-  if (typeof settings.reportUsage === 'boolean' && settings.reportUsage !== store.reportUsage) {
-    store.setReportUsage(settings.reportUsage);
   }
   if (typeof settings.fontSize === 'number' && Number.isFinite(settings.fontSize) && settings.fontSize !== store.fontSize) {
     store.setFontSize(settings.fontSize);
@@ -1579,10 +1575,6 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   const skillCatalogs = sanitizeSkillCatalogs(candidate.skillCatalogs);
   if (skillCatalogs) {
     result.skillCatalogs = skillCatalogs;
-  }
-
-  if (typeof candidate.reportUsage === 'boolean') {
-    result.reportUsage = candidate.reportUsage;
   }
 
   if (typeof candidate.globalBehaviorPrompt === 'string') {

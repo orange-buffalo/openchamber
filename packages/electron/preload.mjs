@@ -142,9 +142,9 @@ const dispatchNativeEvent = (event, detail) => {
   }
 };
 
-// Main-process events are read-only notifications (update progress,
-// window focus, etc.) — safe to deliver to any page rendered in this
-// webContents. The events themselves don't grant capability.
+// Main-process events are read-only notifications (window focus, etc.) —
+// safe to deliver to any page rendered in this webContents. The events
+// themselves don't grant capability.
 ipcRenderer.on('openchamber:emit', (_evt, payload) => {
   if (!payload || typeof payload !== 'object') {
     return;

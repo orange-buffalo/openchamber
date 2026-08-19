@@ -141,16 +141,8 @@ export const createBootstrapRuntime = (dependencies) => {
     });
 
     registerOpenChamberRoutes(app, {
-      fs,
-      os,
-      path,
-      process,
-      server,
-      __dirname,
-      openchamberDataDir,
       modelsDevApiUrl,
       modelsMetadataCacheTtl,
-      readSettingsFromDiskMigrated,
       fetchFreeZenModels,
       getCachedZenModels,
     });
