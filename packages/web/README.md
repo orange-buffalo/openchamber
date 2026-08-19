@@ -25,6 +25,22 @@ Every successful build of the fork's `main` branch publishes
 non-runnable build artifact containing `/openchamber.tgz` and `/SHA256SUMS` for
 use as a Docker build stage. A commit SHA tag is also published for traceability.
 
+### Visual fixtures
+
+`visual-fixture.html` is a development-only Vite entry for deterministic visual
+evidence. It renders production UI components from fixed scenarios under
+`src/visual-fixtures/`; it is intentionally absent from the production Rollup
+inputs and published `dist` output. From the repository root, capture the same
+scenario at desktop and hosted-mobile dimensions with:
+
+```bash
+bun run ui:evidence -- --label after-change --scenario assistant-response
+```
+
+Add scenarios for states that would otherwise require credentials, persisted
+data, or a live model. Keep fixture records deterministic and keep the rendered
+UI on production component paths.
+
 ## Usage
 
 ```bash
@@ -112,18 +128,18 @@ OPENCODE_PORT=4096 OPENCODE_SKIP_START=true openchamber
 OPENCODE_HOST=https://myhost:4096 OPENCODE_SKIP_START=true openchamber
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `OPENCODE_HOST` | Full base URL of external server (overrides `OPENCODE_PORT`) |
-| `OPENCODE_PORT` | Port of external server |
-| `OPENCODE_SKIP_START` | Skip starting embedded OpenCode server |
-| `OPENCHAMBER_OPENCODE_HOSTNAME` | Bind hostname for managed OpenCode server (default: `127.0.0.1`, use `0.0.0.0` for LAN/remote access — trusted networks only). Invalid values are rejected with an error and fall back to loopback |
-| `OPENCHAMBER_HOST` | Bind hostname for the OpenChamber web server (default: `127.0.0.1`; use `0.0.0.0` for LAN/remote access — trusted networks only) |
-| `OPENCHAMBER_VERBOSE_REQUEST_LOGS` | Set to `true` to log every HTTP request; disabled by default to keep user logs small |
-| `OPENCHAMBER_SKIP_API_COMPRESSION` | Set to `true` to disable gzip compression for `/api/*` responses |
-| `OPENCHAMBER_COMPRESS_API` | Set to `true` to force `/api/*` compression, or `false` to disable it. Desktop runtime disables API compression by default to reduce local sidecar CPU use |
-| `OPENCHAMBER_FS_UPLOAD_MAX_BYTES` | Maximum file upload size in bytes (default: 100 MiB) |
-| `OPENCHAMBER_TERMINAL_SHELL` | Preferred terminal shell executable used by the `Auto` setting before platform defaults |
+| Variable                           | Description                                                                                                                                                                                        |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENCODE_HOST`                    | Full base URL of external server (overrides `OPENCODE_PORT`)                                                                                                                                       |
+| `OPENCODE_PORT`                    | Port of external server                                                                                                                                                                            |
+| `OPENCODE_SKIP_START`              | Skip starting embedded OpenCode server                                                                                                                                                             |
+| `OPENCHAMBER_OPENCODE_HOSTNAME`    | Bind hostname for managed OpenCode server (default: `127.0.0.1`, use `0.0.0.0` for LAN/remote access — trusted networks only). Invalid values are rejected with an error and fall back to loopback |
+| `OPENCHAMBER_HOST`                 | Bind hostname for the OpenChamber web server (default: `127.0.0.1`; use `0.0.0.0` for LAN/remote access — trusted networks only)                                                                   |
+| `OPENCHAMBER_VERBOSE_REQUEST_LOGS` | Set to `true` to log every HTTP request; disabled by default to keep user logs small                                                                                                               |
+| `OPENCHAMBER_SKIP_API_COMPRESSION` | Set to `true` to disable gzip compression for `/api/*` responses                                                                                                                                   |
+| `OPENCHAMBER_COMPRESS_API`         | Set to `true` to force `/api/*` compression, or `false` to disable it. Desktop runtime disables API compression by default to reduce local sidecar CPU use                                         |
+| `OPENCHAMBER_FS_UPLOAD_MAX_BYTES`  | Maximum file upload size in bytes (default: 100 MiB)                                                                                                                                               |
+| `OPENCHAMBER_TERMINAL_SHELL`       | Preferred terminal shell executable used by the `Auto` setting before platform defaults                                                                                                            |
 
 </details>
 
@@ -139,6 +155,7 @@ OPENCHAMBER_OPENCODE_HOSTNAME=0.0.0.0 openchamber --port 3000
 </details>
 
 **Optional env vars:**
+
 ```yaml
 environment:
   UI_PASSWORD: your_secure_password
@@ -166,6 +183,7 @@ environment:
 Managed-local path note: `OPENCHAMBER_TUNNEL_CONFIG` must use a container path under `/home/openchamber/...`. If the config file references `credentials-file`, ensure that JSON path is also mounted and reachable inside the container.
 
 **Data directory:** mount `data/` for persistent storage. Ensure permissions:
+
 ```bash
 mkdir -p data/openchamber data/opencode/share data/opencode/config data/ssh
 chown -R 1000:1000 data/
@@ -189,6 +207,7 @@ openchamber stop        # Stop background server
 Use `--foreground` to keep the CLI process alive so systemd (or any other process manager) can track and restart it. Combine with `OPENCODE_HOST` to connect to an OpenCode instance running as a separate service.
 
 **`~/.config/systemd/user/opencode.service`**
+
 ```ini
 [Unit]
 Description=OpenCode Server
@@ -212,6 +231,7 @@ WantedBy=default.target
 > `%t` expands to `$XDG_RUNTIME_DIR` (e.g. `/run/user/1000`), where most SSH agents write their socket.
 
 **`~/.config/systemd/user/openchamber.service`**
+
 ```ini
 [Unit]
 Description=OpenChamber Web Server

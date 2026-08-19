@@ -1,18 +1,19 @@
 # Performance Measurement Tooling
 
-Owns the unattended performance capture commands and their shared Chrome
-DevTools Protocol plumbing. Read this before measuring OpenChamber performance
-or extending these scripts. The methodology rules they enforce come from
+Owns the unattended performance capture commands and Chrome DevTools Protocol
+plumbing. Visual evidence uses Playwright through `scripts/ui-evidence.mjs`
+instead. Read this before measuring OpenChamber performance or extending the
+CDP helpers. The methodology rules they enforce come from
 `.agents/skills/performance-engineering/SKILL.md`.
 
 ## Commands
 
-| Command | Answers |
-|---|---|
-| `bun run profile:idle` | What the app does while nobody interacts with it. |
-| `bun run profile:session` | What receiving and rendering a live assistant response costs. |
-| `bun run profile:animation` | What a CSS animation costs, isolated from the app. |
-| `bun run profile:browser` | A manually driven capture, for interactions that cannot be scripted. |
+| Command                     | Answers                                                              |
+| --------------------------- | -------------------------------------------------------------------- |
+| `bun run profile:idle`      | What the app does while nobody interacts with it.                    |
+| `bun run profile:session`   | What receiving and rendering a live assistant response costs.        |
+| `bun run profile:animation` | What a CSS animation costs, isolated from the app.                   |
+| `bun run profile:browser`   | A manually driven capture, for interactions that cannot be scripted. |
 
 All of them measure a real browser over CDP. Pass `--help` to any of them for
 the full option list.
@@ -87,20 +88,20 @@ bun run profile:animation -- --variant border-color --count 8
 
 Measured on this repository's fixture, at any element count from 1 to 32:
 
-| Animated property | Style recalculations/sec | Layouts/sec |
-|---|---|---|
-| none | 0 | 0 |
-| `transform` (rotate, translate, scale) | 0 | 0 |
-| `opacity`, `filter` | 0 | 0 |
-| `rotate` (the individual property) | 60 | 0 |
-| `background-position` | 60 | 0 |
-| `border-color` | 60 | 0 |
-| `box-shadow` | 60 | 0 |
-| `width` | 60 | 60 |
+| Animated property                      | Style recalculations/sec | Layouts/sec |
+| -------------------------------------- | ------------------------ | ----------- |
+| none                                   | 0                        | 0           |
+| `transform` (rotate, translate, scale) | 0                        | 0           |
+| `opacity`, `filter`                    | 0                        | 0           |
+| `rotate` (the individual property)     | 60                       | 0           |
+| `background-position`                  | 60                       | 0           |
+| `border-color`                         | 60                       | 0           |
+| `box-shadow`                           | 60                       | 0           |
+| `width`                                | 60                       | 60          |
 
 Animate `transform` and `opacity`. Anything else recalculates style on every
 frame for as long as the animation runs, and geometry properties add layout on
-top. Note that `rotate: 360deg` is *not* equivalent to
+top. Note that `rotate: 360deg` is _not_ equivalent to
 `transform: rotate(360deg)` in cost.
 
 Add a variant to `animation-fixture.html` to measure a property or technique
@@ -160,11 +161,11 @@ be a measurement, never a disabled instrument.
 
 ## Module Layout
 
-| File | Responsibility |
-|---|---|
-| `cdp.mjs` | Chrome launch, target discovery, minimal CDP client. Owns the anti-throttling launch flags. |
-| `metrics.mjs` | Metric derivations shared by the profilers: growth rates, percentiles, long-task and trace-event summaries. |
-| `cpu-profile.mjs` | Aggregates `Profiler.stop()` output into self time per function. |
-| `idle-probe.mjs` | Page-side instrumentation installed before application code runs; attributes scheduled work to the call site that scheduled it. Must never change observable behaviour. |
-| `scenario.mjs` | Shared scenario setup, currently sidebar expansion. Setup always runs before the measured window. |
-| `animation-fixture.html` | Isolated animation variants for `profile:animation`. |
+| File                     | Responsibility                                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cdp.mjs`                | Chrome launch, target discovery, and the minimal CDP client used by performance tooling. Owns the anti-throttling launch flags.                                         |
+| `metrics.mjs`            | Metric derivations shared by the profilers: growth rates, percentiles, long-task and trace-event summaries.                                                             |
+| `cpu-profile.mjs`        | Aggregates `Profiler.stop()` output into self time per function.                                                                                                        |
+| `idle-probe.mjs`         | Page-side instrumentation installed before application code runs; attributes scheduled work to the call site that scheduled it. Must never change observable behaviour. |
+| `scenario.mjs`           | Shared scenario setup, currently sidebar expansion. Setup always runs before the measured window.                                                                       |
+| `animation-fixture.html` | Isolated animation variants for `profile:animation`.                                                                                                                    |

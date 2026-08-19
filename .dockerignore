@@ -19,6 +19,7 @@ pnpm-debug.log*
 .env
 .env.*
 .opencode
+.openchamber
 data
 workspaces
 packages/desktop/src-tauri

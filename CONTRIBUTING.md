@@ -14,12 +14,12 @@ Run commands from the project root unless a section says otherwise.
 
 ### Web
 
-| Script | Description | Ports |
-|--------|-------------|-------|
-| `bun run dev` | Default web HMR dev flow. | auto-selected dev ports |
-| `bun run dev:web:full` | Build watcher + Express server. No HMR — manual refresh after changes. | `3001` (server + static) |
-| `bun run dev:web:hmr` | Vite dev server + Express API. **Open the Vite URL for HMR**, not the backend. | `5180` (Vite HMR), `3902` (API) |
-| `bun run start:web` | Start the packaged web server. | `3000` by default |
+| Script                 | Description                                                                    | Ports                           |
+| ---------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
+| `bun run dev`          | Default web HMR dev flow.                                                      | auto-selected dev ports         |
+| `bun run dev:web:full` | Build watcher + Express server. No HMR — manual refresh after changes.         | `3001` (server + static)        |
+| `bun run dev:web:hmr`  | Vite dev server + Express API. **Open the Vite URL for HMR**, not the backend. | `5180` (Vite HMR), `3902` (API) |
+| `bun run start:web`    | Start the packaged web server.                                                 | `3000` by default               |
 
 Both are configurable via env vars: `OPENCHAMBER_PORT`, `OPENCHAMBER_HMR_UI_PORT`, `OPENCHAMBER_HMR_API_PORT`.
 
@@ -67,16 +67,16 @@ bun run lint:ui
 
 ## Build And Package Commands
 
-| Command | What it does |
-|---------|--------------|
-| `bun run build` | Build all workspaces |
-| `bun run build:web` | Build only `packages/web` |
-| `bun run build:ui` | Build only `packages/ui` |
+| Command                  | What it does                                             |
+| ------------------------ | -------------------------------------------------------- |
+| `bun run build`          | Build all workspaces                                     |
+| `bun run build:web`      | Build only `packages/web`                                |
+| `bun run build:ui`       | Build only `packages/ui`                                 |
 | `bun run build:electron` | Run Electron package build script without full packaging |
-| `bun run electron:build` | Build packaged desktop app for the current OS |
-| `bun run vscode:build` | Build the VS Code extension |
-| `bun run vscode:package` | Package the VS Code extension as `.vsix` |
-| `bun run pack:web` | Create a package archive for `@openchamber/web` |
+| `bun run electron:build` | Build packaged desktop app for the current OS            |
+| `bun run vscode:build`   | Build the VS Code extension                              |
+| `bun run vscode:package` | Package the VS Code extension as `.vsix`                 |
+| `bun run pack:web`       | Create a package archive for `@openchamber/web`          |
 
 ## Platform Build Notes
 
@@ -203,6 +203,17 @@ changes that can affect the demonstrated behavior, refresh the evidence or
 state why it remains valid. If there is genuinely no user-visible change, say
 so and provide a concrete reason; deleting the evidence section is not an
 exemption.
+
+From the repository root,
+`bun run ui:evidence -- --label after-<change> --scenario <scenario>` builds a
+cached disposable Docker image without host mounts or inherited credentials.
+It starts only a development Vite server and uses Playwright to capture real
+production components at desktop and hosted-mobile dimensions. Add a
+deterministic scenario under `packages/web/src/visual-fixtures/` for the exact
+changed state; no OpenChamber server, OpenCode server, credentials, or model
+request is needed. Use `--selector` to fail when that state is absent and
+`--help` for the complete interface. Capacitor-only behavior still requires
+native simulator evidence.
 
 ### Review Enforcement
 
