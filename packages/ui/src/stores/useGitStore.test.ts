@@ -74,6 +74,39 @@ describe('useGitStore', () => {
     useGitStore.getState().resetForRuntimeSwitch(getRuntimeKey());
   });
 
+  test('drops a cached diff when only the working-tree mtime changed', async () => {
+    // An agent rewriting a line inside an existing modification leaves the
+    // status letters and the +/- counts identical. Without mtime the cached
+    // diff survives and the Git view keeps showing the pre-edit content.
+    const stats = { 'src/index.ts': { insertions: 3, deletions: 1 } };
+    const before = createStatus(stats, [
+      { path: 'src/index.ts', index: ' ', working_dir: 'M', mtimeMs: 1_000, size: 120 },
+    ]);
+    setDirectoryStatus(before);
+    useGitStore.getState().setDiff('/repo', 'src/index.ts', { original: 'old', modified: 'stale' });
+    expect(useGitStore.getState().getDiff('/repo', 'src/index.ts')?.modified).toBe('stale');
+
+    const after = createStatus(stats, [
+      { path: 'src/index.ts', index: ' ', working_dir: 'M', mtimeMs: 2_000, size: 120 },
+    ]);
+    await useGitStore.getState().fetchStatus('/repo', createGitApi(async () => after), { silent: true });
+
+    expect(useGitStore.getState().getDiff('/repo', 'src/index.ts')).toBeNull();
+  });
+
+  test('keeps a cached diff when the file is untouched', async () => {
+    const stats = { 'src/index.ts': { insertions: 3, deletions: 1 } };
+    const unchanged = () => createStatus(stats, [
+      { path: 'src/index.ts', index: ' ', working_dir: 'M', mtimeMs: 1_000, size: 120 },
+    ]);
+    setDirectoryStatus(unchanged());
+    useGitStore.getState().setDiff('/repo', 'src/index.ts', { original: 'old', modified: 'current' });
+
+    await useGitStore.getState().fetchStatus('/repo', createGitApi(async () => unchanged()), { silent: true });
+
+    expect(useGitStore.getState().getDiff('/repo', 'src/index.ts')?.modified).toBe('current');
+  });
+
   test('does not reuse an in-flight light status request for full status', async () => {
     setDirectoryStatus(createStatus());
     const requests: Deferred<GitStatus>[] = [];

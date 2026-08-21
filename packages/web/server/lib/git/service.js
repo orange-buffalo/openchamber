@@ -2428,16 +2428,34 @@ export async function getStatus(directory, options = {}) {
       // ignore
     }
 
+    // Working-tree mtime/size per changed file. Status letters and numstat
+    // cannot distinguish an edit that keeps the same +/- counts, so clients
+    // caching per-file diffs have no way to tell the content changed. One stat
+    // per changed file is sub-millisecond and costs no extra round trip.
+    const fileStats = await Promise.all(status.files.map(async (f) => {
+      // Status paths resolve against the repo root or the scoped directory
+      // depending on where git ran; resolveGitFileContext tries both for the
+      // same reason.
+      for (const base of new Set([repoRoot, directoryPath])) {
+        const stat = await fsp.stat(path.resolve(base, f.path)).catch(() => null);
+        if (stat?.isFile()) return { mtimeMs: stat.mtimeMs, size: stat.size };
+      }
+      // Deleted or unreadable: leave the fields off so clients fall back to the
+      // status/numstat comparison instead of reading it as unchanged.
+      return null;
+    }));
+
     return {
       current: status.current,
       tracking,
       ahead,
       behind,
       upstreamComparison,
-      files: status.files.map((f) => ({
+      files: status.files.map((f, index) => ({
         path: f.path,
         index: f.index,
         working_dir: f.working_dir,
+        ...(fileStats[index] ?? {}),
       })),
       isClean: status.isClean(),
       diffStats: lightMode ? undefined : diffStats,

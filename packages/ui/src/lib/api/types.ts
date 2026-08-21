@@ -96,6 +96,14 @@ interface GitStatusFile {
   path: string;
   index: string;
   working_dir: string;
+  /**
+   * Working-tree mtime/size, when the file could be stat'd. Status letters and
+   * numstat cannot distinguish an edit that keeps the same +/- counts, so these
+   * are what let a client tell that cached per-file content is stale. Absent for
+   * deleted or unreadable files.
+   */
+  mtimeMs?: number;
+  size?: number;
 }
 
 export interface GitMergeInProgress {

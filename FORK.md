@@ -174,3 +174,46 @@ prop). Fixture: `packages/web/src/visual-fixtures/sidebarProjectsFixture.tsx`.
 **On conflict.** All three edits are small and local. If upstream restructures
 the zone rendering, re-apply the intent: one inset hairline per zone boundary,
 and one indentation step for groups that carry their own sub-header.
+
+---
+
+## 5. Git diff cache invalidates on content, not just status letters
+
+**Intent.** The Git and Diff views served pre-edit diffs after an agent changed
+a file. `useGitStore`'s per-file `diffCache` returns entries with no validation,
+and its only content-accurate invalidation came from a `gitRefreshHint` emitted
+by `ToolPart.tsx` — a chat component that must be mounted *while the tool runs*
+(`observedActiveGitToolRef` is initialised to `!isFinalized`). Edit while the
+Git or Files tab is open and no hint is ever emitted. The fallback compares git
+status metadata only, so an edit that keeps the same status letters and the same
++/- counts — rewriting a line inside an existing modification — is invisible and
+the stale diff survives.
+
+**Shape.** Make the invalidation authoritative instead of adding another
+heuristic. `getStatus` now stats each changed file and returns `mtimeMs`/`size`
+alongside the status letters; `hasStatusChanged` and `getChangedFilePaths`
+compare them. The status poll the client already runs now evicts stale diffs on
+its own, with no extra requests and no dependency on what the chat UI rendered.
+
+Both comparisons only act when *both* sides report `mtimeMs`, so a server that
+omits it falls back to today's behaviour. Server-side stat cost is ~0.2ms for
+five changed files against a `getStatus` that already takes ~150ms.
+
+**Files.** `packages/web/server/lib/git/service.js` (`getStatus`),
+`packages/ui/src/lib/api/types.ts` (`GitStatusFile`),
+`packages/ui/src/stores/useGitStore.ts` (both comparison helpers),
+`packages/ui/src/stores/useGitStore.test.ts`.
+
+**Considered and rejected.** Removing the diff cache outright: ~53 references in
+`useGitStore` plus five consumers, and deleting code upstream actively develops
+turns every upstream change into a conflict with no context. Bypassing the cache
+at the read path was comparable in size but required surgery in `DiffView`'s
+fetch effect, which writes unstaged results only into the store — higher
+regression risk for the same outcome.
+
+**On conflict.** Both helpers are small and self-contained; re-apply the intent
+(compare working-tree mtime/size, not just letters and counts). If upstream adds
+its own file-watch channel or content hash to status, prefer that and delete
+this entry. The cache exists for hosted-mobile and relay clients
+(`MobileChangesSurface.tsx`), not for local use — it is not worth keeping for
+its own sake if upstream reworks it.

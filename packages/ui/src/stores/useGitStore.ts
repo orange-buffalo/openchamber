@@ -410,9 +410,12 @@ const hasStatusChanged = (oldStatus: GitStatus | null, newStatus: GitStatus | nu
     return true;
   }
 
-  const oldPaths = new Set(oldFiles.map(f => `${f.path}:${f.index}:${f.working_dir}`));
+  const fileIdentity = (file: GitStatus['files'][number]): string => (
+    `${file.path}:${file.index}:${file.working_dir}:${file.mtimeMs ?? ''}:${file.size ?? ''}`
+  );
+  const oldPaths = new Set(oldFiles.map(fileIdentity));
   for (const file of newFiles) {
-    if (!oldPaths.has(`${file.path}:${file.index}:${file.working_dir}`)) {
+    if (!oldPaths.has(fileIdentity(file))) {
       return true;
     }
   }
@@ -446,6 +449,18 @@ const getChangedFilePaths = (oldStatus: GitStatus | null, newStatus: GitStatus |
 
     // Index/worktree state changed (indicates actual content/state changed)
     if (oldFile.index !== newFile.index || oldFile.working_dir !== newFile.working_dir) {
+      changed.add(filePath);
+      continue;
+    }
+
+    // Same status letters can still hide an edit: rewriting a line inside an
+    // existing modification leaves the letters and the +/- counts untouched.
+    // Only treat mtime/size as evidence when both sides report them, so a
+    // server that omits them falls back to the comparisons above.
+    if (
+      oldFile.mtimeMs !== undefined && newFile.mtimeMs !== undefined
+      && (oldFile.mtimeMs !== newFile.mtimeMs || oldFile.size !== newFile.size)
+    ) {
       changed.add(filePath);
       continue;
     }
