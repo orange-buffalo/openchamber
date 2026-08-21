@@ -217,3 +217,28 @@ its own file-watch channel or content hash to status, prefer that and delete
 this entry. The cache exists for hosted-mobile and relay clients
 (`MobileChangesSurface.tsx`), not for local use — it is not worth keeping for
 its own sake if upstream reworks it.
+
+---
+
+## 6. Installable Android APK on every push
+
+**Intent.** Every pushed revision should produce an installable Android APK as
+a workflow artifact without also spending macOS runner time on iOS. Consecutive
+artifacts must be valid Android upgrades rather than independently signed debug
+builds.
+
+**Shape.** The mobile smoke workflow runs on every push, builds only
+`assembleRelease`, signs it with the same repository secrets as the mobile
+release workflow, and uses `github.run_number` as the Android version code. It
+uploads the release APK as a run artifact and keeps the iOS simulator job
+manual-only. Gradle dependency caching limits the per-push cost. Successful
+default-branch builds also replace the APK and version manifest on the fixed
+`android-latest` prerelease, providing a stable anonymous download URL. Rolling
+publication has its own cancelling concurrency group so an older build cannot
+overwrite a newer APK; per-run artifact builds remain uncancelled.
+
+**Files.** `.github/workflows/mobile-ci.yml`.
+
+**On conflict.** Preserve an APK-only signed push build with a monotonically
+increasing version code. Do not add AAB or automatic iOS builds to this workflow.
+Only the default branch may update the rolling `android-latest` prerelease.
