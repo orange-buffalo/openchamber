@@ -242,3 +242,49 @@ overwrite a newer APK; per-run artifact builds remain uncancelled.
 **On conflict.** Preserve an APK-only signed push build with a monotonically
 increasing version code. Do not add AAB or automatic iOS builds to this workflow.
 Only the default branch may update the rolling `android-latest` prerelease.
+
+---
+
+## 7. Android update check against this fork's rolling release
+
+**Intent.** Entry 6 publishes a signed APK to the `android-latest` release on
+every push. The installed app should offer that build rather than upstream's
+releases, which it no longer has any way to check (entry 3 removed the whole
+update system).
+
+**Shape.** `packages/ui/src/lib/forkAndroidUpdate.ts` fetches
+`android-latest.json` from the rolling release, compares its `versionCode`
+against the installed build, and returns `available` / `up-to-date` / `unknown`.
+`ForkAndroidUpdateToast` shows a dismissible toast offering the APK, opened in
+the system browser through the existing `openExternalUrl`. Nothing self-installs
+— the user completes the sideload.
+
+Details that are not obvious and are easy to break:
+- **The compare is authoritative, not a heuristic.** The manifest's
+  `versionCode` is `github.run_number`, and `packages/mobile/android/app/build.gradle`
+  builds the APK from the same `OPENCHAMBER_ANDROID_VERSION_CODE`. If either
+  side stops using the run number, the compare breaks silently.
+- **CapacitorHttp, not `fetch`.** GitHub serves release assets with no
+  `Access-Control-Allow-Origin`, so the WebView's own fetch is blocked by CORS.
+  The native HTTP client is the only reason this works on-device. It also hands
+  back a string body for GitHub's `application/octet-stream`, so the JSON is
+  parsed defensively.
+- **`apkUrl` host allowlist.** The manifest decides where the user is sent, so
+  only GitHub's release-asset hosts over https are accepted.
+- **`unknown` is distinct from `up-to-date`.** A failed fetch must never render
+  as "you are current"; it shows nothing.
+- Gated to `getClientPlatform() === 'android'`: a browser on Android is not
+  running the APK and has nothing to update.
+
+Reuses the `mobileUpdate.toast.*` i18n keys that entry 3 left in place across
+all 11 locales, so no new strings were needed.
+
+**Files.** `packages/ui/src/lib/forkAndroidUpdate.ts` (+ test),
+`packages/ui/src/components/update/ForkAndroidUpdateToast.tsx`,
+`packages/ui/src/apps/MobileApp.tsx` (mount, two lines).
+
+**On conflict.** Both new files are fork-owned; only the `MobileApp.tsx` mount
+can conflict, and it is two lines next to `OpenCodeUpdateToast`. If upstream
+reinstates its own mobile update path, prefer this one — it points at this
+fork's APK. `FORK_ANDROID_MANIFEST_URL` hard-codes the repository and is the one
+thing to change if the fork moves.

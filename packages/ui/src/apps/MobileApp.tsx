@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { ForkAndroidUpdateToast } from '@/components/update/ForkAndroidUpdateToast';
 import { OpenCodeUpdateToast } from '@/components/update/OpenCodeUpdateToast';
 import { ConfigUpdateOverlay } from '@/components/ui/ConfigUpdateOverlay';
 import { Button } from '@/components/ui/button';
@@ -1221,6 +1222,7 @@ export function MobileApp({ apis }: MobileAppProps) {
               ) : null}
               <SyncAppEffects embeddedBackgroundWorkEnabled={isInitialized} />
               <OpenCodeUpdateToast />
+              <ForkAndroidUpdateToast />
               <MobileShell onActiveConnectionDeleted={() => {
                 switchRuntimeEndpoint({ apiBaseUrl: '', clientToken: null, runtimeKey: 'mobile-disconnected' });
                 setConnectionEpoch((value) => value + 1);
