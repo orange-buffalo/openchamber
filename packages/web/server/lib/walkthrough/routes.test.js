@@ -13,6 +13,8 @@ describe('walkthrough routes', () => {
   let base;
   let releaseJob;
   let job;
+  let jobStarted;
+  let resolveJobStarted;
 
   let lastArgs;
 
@@ -26,6 +28,7 @@ describe('walkthrough routes', () => {
       if (job) return job;
       job = new Promise((resolve) => {
         releaseJob = () => resolve({ walkthrough: { title: 'DONE' }, hunks: [], hunkCount: 1 });
+        resolveJobStarted();
       }).finally(() => { job = null; });
       return job;
     },
@@ -44,6 +47,7 @@ describe('walkthrough routes', () => {
   beforeEach(async () => {
     job = null;
     releaseJob = undefined;
+    jobStarted = new Promise((resolve) => { resolveJobStarted = resolve; });
     lastArgs = undefined;
     const app = express();
     app.use(express.json());
@@ -59,7 +63,7 @@ describe('walkthrough routes', () => {
 
   it('answers a generation request that nobody interrupted', async () => {
     const pending = generate();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await jobStarted;
     releaseJob();
 
     const body = await (await pending).json();
@@ -70,7 +74,7 @@ describe('walkthrough routes', () => {
   it('delivers the result to a client that reconnected after a refresh', async () => {
     const controller = new AbortController();
     generate(controller.signal).catch(() => {});
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await jobStarted;
     controller.abort();
     await new Promise((resolve) => setTimeout(resolve, 20));
 

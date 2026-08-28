@@ -249,6 +249,16 @@ verify a trustworthy result, in which case it applies `review:automation-failed`
 Each completed review creates a new comment tied to its reviewed HEAD so the
 conversation remains chronological. Previous review comments are not rewritten.
 
+### Keeping PRs active
+
+Stale PRs add review load and make it hard to tell what's still being worked on, so the stale bot keeps the open list current. A PR with no activity for 28 days is automatically labeled `stale`, and closed 7 days later if it stays inactive. To keep a PR open:
+
+- Push updates or respond to review feedback
+- Leave a comment if you're waiting on a reviewer
+- Add the `pinned`, `security`, or `help wanted` label to exempt a long-running PR from the stale bot
+
+Reopening a closed PR is fine if it becomes relevant again.
+
 ## Project Structure
 
 ```

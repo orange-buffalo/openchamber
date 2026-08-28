@@ -1,9 +1,7 @@
 import type { Session } from "@opencode-ai/sdk/v2";
 
-import { SessionGroupSection } from "@openchamber/ui/components/session/sidebar/SessionGroupSection";
-import { SessionNodeItem } from "@openchamber/ui/components/session/sidebar/SessionNodeItem";
-import { SidebarActivitySections } from "@openchamber/ui/components/session/sidebar/SidebarActivitySections";
-import { SidebarProjectsList } from "@openchamber/ui/components/session/sidebar/SidebarProjectsList";
+import { SessionProjectScroller } from "@openchamber/ui/components/session/sidebar/projects/SessionProjectScroller";
+import { SidebarActivitySections } from "@openchamber/ui/components/session/sidebar/recent/SidebarActivitySections";
 import type {
   SessionGroup,
   SessionNode,
@@ -146,172 +144,118 @@ const EMPTY_STRING_SET: Set<string> = new Set();
 const EMPTY_ORDER_INDEX: Map<string, number> = new Map();
 const noop = () => {};
 
-const renderSessionNode = (
-  sessionNode: SessionNode,
-  depth = 0,
-  groupDirectory: string | null = null,
-  projectId: string | null = null,
-  archivedBucket = false,
-  secondaryMeta: {
-    projectLabel?: string | null;
-    branchLabel?: string | null;
-  } | null = null,
-  renderContext: "project" | "recent" = "project",
-): React.ReactNode => (
-  <SessionNodeItem
-    key={`${renderContext}:${sessionNode.session.id}`}
-    node={sessionNode}
-    depth={depth}
-    groupDirectory={groupDirectory}
-    projectId={projectId}
-    archivedBucket={archivedBucket}
-    pinnedSessionIds={EMPTY_STRING_SET}
-    expandedParents={EMPTY_STRING_SET}
-    hasSessionSearchQuery={false}
-    normalizedSessionSearchQuery=""
-    notifyOnSubtasks={false}
-    editingId={null}
-    setEditingId={noop}
-    editTitle=""
-    setEditTitle={noop}
-    handleSaveEdit={noop}
-    handleCancelEdit={noop}
-    toggleParent={noop}
-    handleSessionSelect={noop}
-    handleSessionDoubleClick={noop}
-    togglePinnedSession={noop}
-    handleShareSession={noop}
-    copiedSessionId={null}
-    handleCopyShareUrl={noop}
-    handleCopySessionId={noop}
-    handleUnshareSession={noop}
-    openSidebarMenuKey={null}
-    setOpenSidebarMenuKey={noop}
-    renamingFolderId={null}
-    getFoldersForScope={() => []}
-    getSessionFolderId={() => null}
-    removeSessionFromFolder={noop}
-    addSessionToFolder={noop}
-    createFolderAndStartRename={() => null}
-    openContextPanelTab={noop}
-    handleDeleteSession={noop}
-    handleRestoreSession={noop}
-    mobileVariant={false}
-    alwaysShowActions={false}
-    renderSessionNode={renderSessionNode}
-    secondaryMeta={secondaryMeta}
-    renderContext={renderContext}
-    subtreeContainsEditing={EMPTY_STRING_SET}
-    menuOpenSessionId={null}
-    nodeStructureKey={sessionNode.session.id}
-  />
-);
-
-const renderGroupSessions = (
-  sessionGroup: SessionGroup,
-  groupKey: string,
-  projectId?: string | null,
-  hideGroupLabel?: boolean,
-  dragHandleProps?: unknown,
-  compactBodyPadding?: boolean,
-): React.ReactNode => (
-  <SessionGroupSection
-    group={sessionGroup}
-    groupKey={groupKey}
-    projectId={projectId}
-    hideGroupLabel={hideGroupLabel}
-    hasSessionSearchQuery={false}
-    normalizedSessionSearchQuery=""
-    groupSearchDataByGroup={new WeakMap()}
-    collapsedGroups={EMPTY_STRING_SET}
-    hideDirectoryControls={false}
-    collapsedFolderIds={EMPTY_STRING_SET}
-    toggleFolderCollapse={noop}
-    renameFolder={noop}
-    deleteFolder={noop}
-    showDeletionDialog={false}
-    setDeleteFolderConfirm={noop}
-    renderSessionNode={renderSessionNode}
-    showMoreGroupSessions={noop}
-    resetGroupSessionLimit={noop}
-    mobileVariant={false}
-    alwaysShowActions={false}
-    activeProjectId={null}
-    setActiveProjectIdOnly={noop}
-    setActiveMainTab={noop}
-    setSessionSwitcherOpen={noop}
-    openNewSessionDraft={noop}
-    addSessionToFolder={noop}
-    createFolderAndStartRename={() => null}
-    renamingFolderId={null}
-    renameFolderDraft=""
-    setRenameFolderDraft={noop}
-    setRenamingFolderId={noop}
-    pinnedSessionIds={EMPTY_STRING_SET}
-    expandedParents={EMPTY_STRING_SET}
-    sessionOrderIndex={EMPTY_ORDER_INDEX}
-    editingId={null}
-    editTitle=""
-    openSidebarMenuKey={null}
-    activeActivitySessionIds={EMPTY_STRING_SET}
-    unreadActivitySessionIds={EMPTY_STRING_SET}
-    notifyOnSubtasks={false}
-    onToggleCollapsedGroup={noop}
-    dragHandleProps={dragHandleProps as never}
-    compactBodyPadding={compactBodyPadding}
-  />
-);
-
 export function SidebarProjectsFixture(): React.ReactNode {
+  const sessionTreeActions = {
+    setEditingId: noop,
+    setEditTitle: noop,
+    toggleParent: noop,
+    setOpenSidebarMenuKey: noop,
+    allowReselect: false,
+    isSessionSearchOpen: false,
+    sessionSearchQuery: "",
+    setSessionSearchQuery: noop,
+    setIsSessionSearchOpen: noop,
+    deleteSessionConfirm: null,
+    setDeleteSessionConfirm: noop,
+    startFolderRename: noop,
+    setCopiedSessionId: noop,
+  };
+
   return (
     <div className="flex h-[860px] w-[300px] flex-col bg-sidebar text-sidebar-foreground">
-      <SidebarProjectsList
-        topContent={
+      <SessionProjectScroller
+        model={{
+          topContent: (
           <SidebarActivitySections
             sections={[
               { key: "active-now", title: "recent", items: recentItems },
             ]}
-            renderSessionNode={renderSessionNode}
+            pinnedSessionIds={EMPTY_STRING_SET}
+            expandedParents={EMPTY_STRING_SET}
+            hasSessionSearchQuery={false}
+            normalizedSessionSearchQuery=""
+            notifyOnSubtasks={false}
             editingId={null}
+            editTitle=""
+            copiedSessionId={null}
             openSidebarMenuKey={null}
-            variant="section"
+            mobileVariant={false}
+            alwaysShowActions={false}
             isDesktopShellRuntime={false}
+            {...sessionTreeActions}
           />
-        }
-        sectionsForRender={projectSections}
-        projectSections={projectSections}
-        activeProjectId="openchamber"
-        showOnlyMainWorkspace={false}
-        hasSessionSearchQuery={false}
-        emptyState={null}
-        searchEmptyState={null}
-        renderGroupSessions={renderGroupSessions}
-        getOrderedGroups={(_projectId, groups) => groups}
-        setGroupOrderByProject={noop}
-        homeDirectory="/home/dev"
-        collapsedProjects={EMPTY_STRING_SET}
-        hideDirectoryControls={false}
-        projectRepoStatus={new Map([["aionify", true]])}
-        isDesktopShellRuntime={false}
-        stickyZoneHeaders={false}
-        stuckProjectHeaders={EMPTY_STRING_SET}
-        mobileVariant={false}
-        alwaysShowActions={false}
-        projectSortOrder="manual"
-        isInlineEditing={false}
-        reorderProjects={noop}
-        toggleProject={noop}
-        setActiveProjectIdOnly={noop}
-        setActiveMainTab={noop}
-        setSessionSwitcherOpen={noop}
-        openNewSessionDraft={noop}
-        openNewWorktreeDialog={noop}
-        openWorktreesPage={noop}
-        openProjectEditDialog={noop}
-        removeProject={noop}
-        projectHeaderSentinelRefs={{ current: new Map() }}
-        openSidebarMenuKey={null}
-        setOpenSidebarMenuKey={noop}
+          ),
+          sectionsForRender: projectSections,
+          projectSections,
+          activeProjectId: "openchamber",
+          singleProjectMode: false,
+          singleProjectId: null,
+          emptyState: null,
+          searchEmptyState: null,
+          projectRepoStatus: new Map([["aionify", true]]),
+          stuckProjectHeaders: EMPTY_STRING_SET,
+          projectHeaderSentinelRefs: { current: new Map() },
+          state: {
+            editingId: null,
+            openSidebarMenuKey: null,
+            setOpenSidebarMenuKey: noop,
+            visibleSessionCountByGroup: new Map(),
+          },
+          groupProps: {
+            hasSessionSearchQuery: false,
+            normalizedSessionSearchQuery: "",
+            groupSearchDataByGroup: new WeakMap(),
+            collapsedGroups: EMPTY_STRING_SET,
+            hideDirectoryControls: false,
+            mobileVariant: false,
+            alwaysShowActions: false,
+            activeProjectId: "openchamber",
+            notifyOnSubtasks: false,
+            expandedParents: EMPTY_STRING_SET,
+            editTitle: "",
+            copiedSessionId: null,
+            folderRename: null,
+            setFolderRenameDraft: noop,
+            clearFolderRename: noop,
+            pinnedSessionIds: EMPTY_STRING_SET,
+            sessionOrderIndex: EMPTY_ORDER_INDEX,
+            ...sessionTreeActions,
+          },
+        }}
+        view={{
+          homeDirectory: "/home/dev",
+          collapsedProjects: EMPTY_STRING_SET,
+          showOnlyMainWorkspace: false,
+          hasSessionSearchQuery: false,
+          normalizedSessionSearchQuery: "",
+          hideDirectoryControls: false,
+          isDesktopShellRuntime: false,
+          stickyZoneHeaders: false,
+          mobileVariant: false,
+          alwaysShowActions: false,
+          projectSortOrder: "manual",
+        }}
+        actions={{
+          group: {
+            showMoreGroupSessions: noop,
+            resetGroupSessionLimit: noop,
+            setActiveProjectIdOnly: noop,
+            setSessionSwitcherOpen: noop,
+            openNewSessionDraft: noop,
+            onToggleCollapsedGroup: noop,
+          },
+          toggleProject: noop,
+          setActiveProjectIdOnly: noop,
+          setSessionSwitcherOpen: noop,
+          openNewSessionDraft: noop,
+          openNewWorktreeDialog: noop,
+          openWorktreesPage: noop,
+          openProjectEditDialog: noop,
+          removeProject: noop,
+          reorderProjects: noop,
+          setGroupOrderByProject: noop,
+          setSingleProjectId: noop,
+        }}
       />
     </div>
   );
