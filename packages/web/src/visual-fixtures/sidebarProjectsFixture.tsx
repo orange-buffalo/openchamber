@@ -159,6 +159,7 @@ export function SidebarProjectsFixture(): React.ReactNode {
     setDeleteSessionConfirm: noop,
     startFolderRename: noop,
     setCopiedSessionId: noop,
+    startSessionWorktreeMenuLoad: () => ({ cachedTargets: [], refreshTargets: Promise.resolve([]) }),
   };
 
   return (

@@ -8,12 +8,13 @@ CDP helpers. The methodology rules they enforce come from
 
 ## Commands
 
-| Command                     | Answers                                                              |
-| --------------------------- | -------------------------------------------------------------------- |
-| `bun run profile:idle`      | What the app does while nobody interacts with it.                    |
-| `bun run profile:session`   | What receiving and rendering a live assistant response costs.        |
-| `bun run profile:animation` | What a CSS animation costs, isolated from the app.                   |
-| `bun run profile:browser`   | A manually driven capture, for interactions that cannot be scripted. |
+| Command | Answers |
+|---|---|
+| `bun run profile:idle` | What the app does while nobody interacts with it. |
+| `bun run profile:session` | What receiving and rendering a live assistant response costs. |
+| `bun run profile:animation` | What a CSS animation costs, isolated from the app. |
+| `bun run profile:switch` | How long switching sessions from the sidebar takes, cold and warm. |
+| `bun run profile:browser` | A manually driven capture, for interactions that cannot be scripted. |
 
 All of them measure a real browser over CDP. Pass `--help` to any of them for
 the full option list.
@@ -88,24 +89,48 @@ bun run profile:animation -- --variant border-color --count 8
 
 Measured on this repository's fixture, at any element count from 1 to 32:
 
-| Animated property                      | Style recalculations/sec | Layouts/sec |
-| -------------------------------------- | ------------------------ | ----------- |
-| none                                   | 0                        | 0           |
-| `transform` (rotate, translate, scale) | 0                        | 0           |
-| `opacity`, `filter`                    | 0                        | 0           |
-| `rotate` (the individual property)     | 60                       | 0           |
-| `background-position`                  | 60                       | 0           |
-| `border-color`                         | 60                       | 0           |
-| `box-shadow`                           | 60                       | 0           |
-| `width`                                | 60                       | 60          |
+| Animated property | Style recalculations/sec | Layouts/sec |
+|---|---|---|
+| none | 0 | 0 |
+| `transform` (rotate, translate, scale) | 0 | 0 |
+| `opacity`, `filter` | 0 | 0 |
+| `rotate` (the individual property) | 60 | 0 |
+| `background-position` | 60 | 0 |
+| `border-color` | 60 | 0 |
+| `box-shadow` | 60 | 0 |
+| `width` | 60 | 60 |
 
 Animate `transform` and `opacity`. Anything else recalculates style on every
 frame for as long as the animation runs, and geometry properties add layout on
-top. Note that `rotate: 360deg` is _not_ equivalent to
+top. Note that `rotate: 360deg` is *not* equivalent to
 `transform: rotate(360deg)` in cost.
 
 Add a variant to `animation-fixture.html` to measure a property or technique
 that is not listed.
+
+## profile:switch
+
+Clicks sidebar session rows with real mouse input and measures, per click, the
+two moments a user feels: `ack`, when the clicked row is highlighted as active
+(the first visible reaction), and `content`, when the timeline shows messages
+that were not on screen before. It also reports the longest main-thread task
+inside each switch and every request the switch triggered, so fan-out
+regressions show up next to the latency they cause.
+
+Every session in the plan is visited twice. The first visit is usually cold
+(a network round trip for messages); the second is warm, served from the
+in-memory session store. They have different budgets and are reported
+separately.
+
+```bash
+bun run profile:switch -- --url http://127.0.0.1:4599 --output artifacts/switch-before
+bun run profile:switch -- --url http://127.0.0.1:4599 --baseline artifacts/switch-before --budget-ack 32 --budget-content 100
+```
+
+`--sessions a,b,c` picks the rows to click; the default is the first rows in
+the sidebar, so pass explicit ids to compare runs across days. The row must be
+present in the sidebar; the command fails rather than measuring a click on
+nothing.
 
 ## Reading The Results
 
@@ -161,11 +186,11 @@ be a measurement, never a disabled instrument.
 
 ## Module Layout
 
-| File                     | Responsibility                                                                                                                                                          |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cdp.mjs`                | Chrome launch, target discovery, and the minimal CDP client used by performance tooling. Owns the anti-throttling launch flags.                                         |
-| `metrics.mjs`            | Metric derivations shared by the profilers: growth rates, percentiles, long-task and trace-event summaries.                                                             |
-| `cpu-profile.mjs`        | Aggregates `Profiler.stop()` output into self time per function.                                                                                                        |
-| `idle-probe.mjs`         | Page-side instrumentation installed before application code runs; attributes scheduled work to the call site that scheduled it. Must never change observable behaviour. |
-| `scenario.mjs`           | Shared scenario setup, currently sidebar expansion. Setup always runs before the measured window.                                                                       |
-| `animation-fixture.html` | Isolated animation variants for `profile:animation`.                                                                                                                    |
+| File | Responsibility |
+|---|---|
+| `cdp.mjs` | Chrome launch, target discovery, and the minimal CDP client used by performance tooling. Owns the anti-throttling launch flags. |
+| `metrics.mjs` | Metric derivations shared by the profilers: growth rates, percentiles, long-task and trace-event summaries. |
+| `cpu-profile.mjs` | Aggregates `Profiler.stop()` output into self time per function. |
+| `idle-probe.mjs` | Page-side instrumentation installed before application code runs; attributes scheduled work to the call site that scheduled it. Must never change observable behaviour. |
+| `scenario.mjs` | Shared scenario setup, currently sidebar expansion. Setup always runs before the measured window. |
+| `animation-fixture.html` | Isolated animation variants for `profile:animation`. |

@@ -105,7 +105,7 @@ to an upstream endpoint on a timer.
   `installingUpdate` quit path. `desktop_restart` is now a plain relaunch.
 - **vscode**: the `api:openchamber:update-check` bridge handler, its webview
   route, and the install-id generation feeding it.
-- 36 update i18n keys across all 11 locales.
+- 36 update i18n keys across every locale (12 since upstream added Turkish).
 
 Also removed the **"Send anonymous usage reports" setting**: its only consumer
 was the update check's telemetry payload, so it no longer controlled anything,
@@ -123,7 +123,7 @@ a different feature and is untouched.
 `packages/ui/src/components/layout/Header.tsx`,
 `packages/ui/src/components/session/SessionSidebar.tsx`,
 `packages/ui/src/lib/desktop.ts`, `packages/web/bin/cli.js`,
-`packages/web/server/lib/opencode/openchamber-routes.js`, and all 22 locale
+`packages/web/server/lib/opencode/openchamber-routes.js`, and all locale
 files.
 
 **On conflict.** Locale files conflict on every upstream sync but resolve
@@ -167,9 +167,9 @@ the same indentation as the project that owns them, so nesting was invisible.
   levels. Re-measure these numbers if upstream changes the header's `pl-4`, the
   scroller's `pl-2.5`, or the session row's `pl-[26px]`.
 
-**Files.** `packages/ui/src/components/session/sidebar/SidebarProjectsList.tsx`,
-`SidebarActivitySections.tsx`, `sortableItems.tsx` (new `showTopSeparator`
-prop). Fixture: `packages/web/src/visual-fixtures/sidebarProjectsFixture.tsx`.
+**Files.** `packages/ui/src/components/session/sidebar/projects/SessionProjectScroller.tsx`,
+`recent/SidebarActivitySections.tsx`, `projects/sortableItems.tsx` (new
+`showTopSeparator` prop). Fixture: `packages/web/src/visual-fixtures/sidebarProjectsFixture.tsx`.
 
 **On conflict.** All three edits are small and local. If upstream restructures
 the zone rendering, re-apply the intent: one inset hairline per zone boundary,
@@ -277,7 +277,7 @@ Details that are not obvious and are easy to break:
   running the APK and has nothing to update.
 
 Reuses the `mobileUpdate.toast.*` i18n keys that entry 3 left in place across
-all 11 locales, so no new strings were needed.
+every locale, so no new strings were needed.
 
 **Files.** `packages/ui/src/lib/forkAndroidUpdate.ts` (+ test),
 `packages/ui/src/components/update/ForkAndroidUpdateToast.tsx`,
