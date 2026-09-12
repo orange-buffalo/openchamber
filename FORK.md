@@ -39,11 +39,11 @@ lost the mandatory pre-read, the PR handoff, and the workspace-wide default
 validation, which became a per-package table. `ui-verification` captures
 screenshots on request rather than after every UI edit;
 `openchamber-change-discipline` keeps only risk-specific validation extras;
-`changelog-authoring` applies only to changes headed upstream.
+`update-changelog` applies only to changes headed upstream.
 
 **Files.** `AGENTS.md`, `.agents/skills/ui-verification/SKILL.md`,
 `.agents/skills/openchamber-change-discipline/SKILL.md`,
-`.agents/skills/changelog-authoring/SKILL.md`.
+`.agents/skills/update-changelog/SKILL.md`.
 
 **On conflict.** Keep the fork's version. Re-apply the trim to any new upstream
 section that adds contribution ceremony. Correctness invariants, structural
@@ -132,6 +132,17 @@ operations. If upstream adds a *new* update-related key or surface, delete it
 rather than merging it. `packages/electron/package.json` must not regain
 `electron-updater`, and `bun.lock` must be regenerated (`bun install`) whenever
 that manifest changes, or CI's `--frozen-lockfile` install fails.
+
+Two shapes of new surface are easy to miss because they do not conflict. One is
+a whole new module with no consumer left in this fork (`lib/web-update.ts`,
+`lib/updateInstallError.ts`, `server/lib/changelog/update-notes.js`): only its
+own test imports it, so nothing fails — delete both. The other is an update
+capability threaded through unrelated plumbing: v1.23.0's `desktopUpdater`
+travelled from `electron/main.mjs` through `web/server/index.js` and
+`bootstrap-runtime.js` into `openchamber-routes.js`, each hop a clean merge.
+Follow the whole chain out. `reportUsage` behaves the same way now that
+settings live in `lib/settings/registry.ts` — drop the field and re-run
+`bun run settings-registry:generate`, or the checked-in snapshots drift.
 
 ---
 

@@ -19,6 +19,8 @@ The preload bridge exposes desktop-only APIs to the web UI through `window.__OPE
 | File | Purpose |
 |------|---------|
 | `main.mjs` | Electron main process, app lifecycle, windows, menus, deep links, native IPC handlers, local server startup |
+| `electron-host-probe.mjs` | Chromium direct-host probes, identity checks, attempt deadlines, and response cleanup |
+| `host-probe-policy.mjs` | Selector fast attempt and unreachable-only retry policy |
 | `startup-url-selection.mjs` | Pure bundled/HMR startup probe and loopback connection-limit policy |
 | `preload.mjs` | Safe bridge from the rendered UI to Electron IPC |
 | `ssh-manager.mjs` | SSH host import, connection lifecycle, tunnel/port forwarding helpers |
@@ -33,6 +35,29 @@ The preload bridge exposes desktop-only APIs to the web UI through `window.__OPE
 
 ## Development
 
+### Direct-host probe invariants
+
+After app readiness, direct-host probes use Chromium `net.fetch`, not Node fetch.
+Each attempt shares one deadline across optional `/health` identity verification,
+`/api/version`, and `/auth/session`, including JSON body reads. The fast attempt
+has a 2-second budget. The selector retries once with a 10-second budget only
+after Unreachable. Reported latency is the final attempt's application-probe
+duration, excluding an earlier failed attempt. It is not raw network ping.
+
+Probes never follow redirects. A redirected identity check returns Wrong Service
+before any bearer-bearing request. An explicit server ID mismatch also stops the
+probe. Electron 43 reports a manual redirect as a rejected fetch rather than a
+3xx response; the identity gate handles both forms. Identity requests carry
+neither the client token nor custom headers;
+version and session requests use sanitized custom headers and the client bearer
+token. Older servers without identity metadata remain supported. HTTP 401 and
+403 mean authentication is required, not that the instance is offline.
+
+Every exit aborts the attempt's requests and cancels unused response bodies before
+clearing the deadline timer. This includes early HTTP classifications and a
+successful session response whose body is not needed. TLS verification remains
+enabled. These rules do not change relay probing or the preload/IPC contract.
+
 From the repo root:
 
 ```bash
@@ -40,14 +65,14 @@ bun install
 bun run electron:dev
 ```
 
-`bun run electron:dev` starts the web dev server with HMR, then launches Electron against `packages/electron/main.mjs`.
+`bun run electron:dev` starts the web dev server with HMR, then launches Electron against `packages/electron/main.mjs`. On Windows, the HMR launcher resolves npm's `bun.cmd` shim to the underlying `bun.exe` before spawning Bun child processes.
 
 The Electron workspace package trusts Electron's install script so `bun install` downloads the platform runtime in fresh checkouts and worktrees.
 
 Electron's postinstall (`node install.js`) is run by `bun install` with the system Node. Older Electron releases bundled `extract-zip@2.0.1`, which under Node 24 silently unpacked only the first entry of the Electron zip, leaving `dist/` without the binary and `path.txt` missing. Electron 43+ ships its own fixed extractor (`@electron-internal/extract-zip`), but to keep interrupted or wrong-architecture installs from blocking desktop work:
 
 - The root `postinstall` runs `ensure-electron.mjs --best-effort`, which detects an incomplete Electron install (missing binary, stale `dist/version`/`path.txt`, or a binary of the wrong architecture) and repairs it by re-running the postinstall under Bun (which extracts correctly), falling back to Node.
-- `electron-dev.mjs` runs the same check (fail-fast, not best-effort) before launching, so `bun run electron:dev` self-heals even when an install was interrupted.
+- `electron-dev.mjs` runs the same check (fail-fast, not best-effort) before launching, so `bun run electron:dev` self-heals even when an install was interrupted. On Windows, the repair resolves npm's `bun.cmd` shim to the underlying `bun.exe` before spawning it from Node.
 - The check can be run on demand with `bun run --cwd packages/electron ensure:electron`; set `ELECTRON_SKIP_BINARY_DOWNLOAD=1` to skip repair (e.g. CI without a network).
 - Unit tests in `scripts/ensure-electron.test.mjs` (run via `bun run --cwd packages/electron test:architecture`) cover healthy/missing/stale installs, wrong-architecture binaries, repair fallback, and `--best-effort`.
 
@@ -137,6 +162,10 @@ Use an explicit override when testing a different OpenCode CLI build or when a u
 ## Native Features Owned Here
 
 - Floating Mini Chat windows.
+- Mini Chat loads from the resolved local UI origin in HMR development, not the
+  API server origin. Bundled mode keeps `openchamber-ui://` assets. Native zoom
+  targets the focused window directly; composer focus adjusts interface scale,
+  while terminal and file-editor focus adjust their own font sizes.
 - New Mini Chat windows default to the managed Chats target. Explicit project/worktree drafts retain their target, existing managed chat sessions reopen in their own directory, and the compact header omits project/branch metadata for Chats. Opening a managed draft back in the main window preserves that target.
 - Multiple native windows.
 - Native notifications.

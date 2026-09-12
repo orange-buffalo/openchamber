@@ -31,6 +31,7 @@ send never re-resolves mutable UI state:
 {
   id, createdAt,
   content,        // raw text for display and editing
+  contextPreview?, // bounded display-only summary captured by the UI
   text,           // text to deliver (agent mention stripped, file mentions resolved); defaults to content
   agentMention?,  // delivered as an `agent` part
   attachments: [{ id, filename, mimeType, size, source, serverPath?, dataUrl }],
@@ -55,6 +56,12 @@ the context block back. The payload inside `metadata` is the UI's contract
 context entry). Public snapshots and broadcasts strip the payloads —
 attachment `dataUrl` (megabytes of base64) and `context` (a PR diff, say) —
 so they do not ride every update; the only way to get them back is a `take`.
+
+Snapshots retain `contextPreview`, capped at 100 characters plus an ellipsis.
+It carries the attached comment or context label when `content` is empty and
+never replaces editable text or delivered parts. Older items without a summary
+derive one from the attached comment metadata or the first non-instruction
+context text. This optional field needs no queue-file migration.
 
 ## Persistence
 
@@ -95,13 +102,19 @@ persisted "sending" flag would strand a message forever.
    the tick re-arms with backoff.
 5. The head is marked in flight (broadcast), then sent:
    - text starting with `/` that names a command in OpenCode's `/command`
-     list (skills included) goes to `POST /session/:id/command` with the
-     captured model, agent, variant, and file parts;
+     list (skills included) and carries no captured context goes to
+     `POST /session/:id/command` with the captured model, agent, variant, and
+     file parts. That route accepts file parts only, so a command queued
+     **with** context takes the prompt route instead, the same rule the
+     composer applies: the command's template is expanded with its arguments
+     (`$ARGUMENTS`, `$1..$N`, or appended), a skill keeps its `/name args` text
+     and gets an explicit "the user invoked this skill" synthetic part after
+     the context;
    - otherwise `POST /session/:id/prompt_async` with the parts in the same
-     order a UI send uses: text, files, the captured context, pending project
-     knowledge (`sessionKnowledgeRuntime.resolvePendingForSession`, synthetic,
-     recorded as delivered only after the prompt is accepted), then the agent
-     mention. The command path sends files and captured context as `parts`.
+     order a UI send uses: text, files, the captured context, the skill
+     invocation when there is one, pending project knowledge
+     (`sessionKnowledgeRuntime.resolvePendingForSession`, synthetic, recorded
+     as delivered only after the prompt is accepted), then the agent mention.
    Success removes the item, persists, broadcasts, and marks the user
    message sent for notifications. Failure keeps the item, backs off
    2 s → 60 s (doubling per consecutive failure of that item), and re-arms.
@@ -134,7 +147,14 @@ allowlists.
 
 Every mutation broadcasts `openchamber:message-queue.updated` with
 `{ revision, session }` to all connected clients (SSE and WS), so several
-devices on one server see one queue.
+devices on one server see one queue. SSE uses the shared control stream at
+`/api/openchamber/events`; `/api/global/event` carries no OpenChamber events.
+The UI subscribes independently of its OpenCode transport and re-reads the
+snapshot whenever either stream reconnects. The session in that payload always names
+its `directory`, including the broadcast that removes the last item: the UI
+keys its projection by directory, and a broadcast without one left the
+delivered message on screen (a session's directory is remembered until the
+session is deleted or evicted).
 
 Limits: 20 items per session, 50 sessions (oldest evicted, never one with an
 item in flight), 200k characters of content; attachment payloads are bounded
