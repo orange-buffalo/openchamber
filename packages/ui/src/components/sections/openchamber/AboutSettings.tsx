@@ -1,9 +1,13 @@
 import React from 'react';
 import { useDeviceInfo } from '@/lib/device';
+import { isCapacitorApp } from '@/lib/platform';
+import { Button } from '@/components/ui/button';
 import { Icon } from "@/components/icon/Icon";
 import { OpenChamberLogo } from '@/components/ui/OpenChamberLogo';
 import { useI18n } from '@/lib/i18n';
 import { runtimeFetch } from '@/lib/runtime-fetch';
+import { reloadOpenCodeConfiguration } from '@/stores/useAgentsStore';
+import { fetchOpenCodeUpgradeStatus, runOpenCodeUpgrade, type OpenCodeUpgradeStatus } from '@/components/update/openCodeUpgrade';
 import { InstanceServiceUrls } from './InstanceServiceUrls';
 import {
   SettingsSection,
@@ -15,13 +19,104 @@ const GITHUB_URL = 'https://github.com/openchamber/openchamber';
 const DISCORD_URL = 'https://discord.gg/ZYRSdnwwKA';
 const X_URL = 'https://x.com/openchamber_dev';
 
+type OpenCodeUpgradePhase =
+  | { kind: 'idle' }
+  | { kind: 'upgrading' }
+  | { kind: 'installed'; version: string | null }
+  | { kind: 'failed'; error: string };
+
+function useOpenCodeUpgrade(failedFallback: string) {
+  const [status, setStatus] = React.useState<OpenCodeUpgradeStatus | null>(null);
+  const [phase, setPhase] = React.useState<OpenCodeUpgradePhase>({ kind: 'idle' });
+
+  const refresh = React.useCallback(async (): Promise<OpenCodeUpgradeStatus | null> => {
+    try {
+      const next = await fetchOpenCodeUpgradeStatus();
+      setStatus(next);
+      return next;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  React.useEffect(() => { void refresh(); }, [refresh]);
+
+  const upgrade = React.useCallback(async () => {
+    setPhase({ kind: 'upgrading' });
+    try {
+      const version = await runOpenCodeUpgrade(failedFallback);
+      setPhase({ kind: 'installed', version });
+    } catch (error) {
+      setPhase({ kind: 'failed', error: error instanceof Error ? error.message : failedFallback });
+    }
+  }, [failedFallback]);
+
+  const reloadAfterUpgrade = React.useCallback(async (reload: () => Promise<void>) => {
+    await reload().catch(() => undefined);
+    const next = await refresh();
+    if (!next?.currentVersion) return;
+    setPhase((current) => {
+      if (current.kind !== 'installed') return current;
+      if (current.version && current.version.replace(/^v/, '') !== next.currentVersion) return current;
+      return { kind: 'idle' };
+    });
+  }, [refresh]);
+
+  return { status, phase, upgrade, reloadAfterUpgrade };
+}
+
+function useNativeAppVersion(enabled: boolean): string | null {
+  const [version, setVersion] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void import('@capacitor/app').then(({ App }) => App.getInfo()).then((info) => {
+      if (!cancelled) setVersion(info.version.trim() || null);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [enabled]);
+  return version;
+}
+
 export const AboutSettings: React.FC = () => {
   const { t } = useI18n();
   const [openChamberVersion, setOpenChamberVersion] = React.useState<string | null>(null);
-  const [openCodeVersion, setOpenCodeVersion] = React.useState<string | null>(null);
+  const openCode = useOpenCodeUpgrade(t('opencodeUpdate.toast.failed.description'));
+  const openCodeVersion = openCode.status?.currentVersion ?? null;
+  const openCodeUpdateVersion = openCode.phase.kind === 'installed' ? null : openCode.status?.availableVersion ?? null;
   const { isMobile } = useDeviceInfo();
+  const isNativeApp = React.useMemo(() => isCapacitorApp(), []);
+  const nativeAppVersion = useNativeAppVersion(isNativeApp);
 
   const currentVersion = openChamberVersion || 'unknown';
+  const reloadOpenCode = () => {
+    void openCode.reloadAfterUpgrade(async () => {
+      await reloadOpenCodeConfiguration({
+        message: t('opencodeUpdate.toast.reload.message'), mode: 'projects', scopes: ['all'],
+      });
+    });
+  };
+  const openCodeUpdateControls = (() => {
+    const { phase } = openCode;
+    if (phase.kind === 'installed') return <div className="flex flex-wrap items-center gap-3">
+      <span className="typography-meta text-muted-foreground">{phase.version
+        ? t('settings.openchamber.about.openCode.installedVersion', { version: phase.version })
+        : t('settings.openchamber.about.openCode.installed')}</span>
+      <Button type="button" size="sm" variant="outline" onClick={reloadOpenCode}>{t('opencodeUpdate.toast.actions.reload')}</Button>
+    </div>;
+    if (!openCodeUpdateVersion) return null;
+    if (!openCode.status?.supported) return <p className="typography-meta text-muted-foreground">
+      {t('settings.openchamber.about.openCode.manualUpdate', { version: openCodeUpdateVersion })}
+    </p>;
+    const upgrading = phase.kind === 'upgrading';
+    return <div className="space-y-2">
+      <Button type="button" size="sm" variant="outline" onClick={() => void openCode.upgrade()} disabled={upgrading}>
+        <Icon name={upgrading ? 'loader' : 'download'} className={upgrading ? 'size-4 animate-spin' : 'size-4'} />
+        {upgrading ? t('opencodeUpdate.toast.upgrading.title') : t('settings.openchamber.about.actions.updateOpenCodeToVersion', { version: openCodeUpdateVersion })}
+      </Button>
+      {phase.kind === 'failed' && <p className="typography-meta text-[var(--status-error)]">{phase.error}</p>}
+    </div>;
+  })();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -50,33 +145,6 @@ export const AboutSettings: React.FC = () => {
     };
   }, []);
 
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadOpenCodeVersion = async () => {
-      try {
-        const response = await runtimeFetch('/api/opencode/upgrade-status', {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-        });
-        if (!response.ok) return;
-        const data = await response.json().catch(() => null) as { currentVersion?: unknown } | null;
-        const version = typeof data?.currentVersion === 'string' && data.currentVersion.trim().length > 0
-          ? data.currentVersion.trim()
-          : null;
-        if (!cancelled) setOpenCodeVersion(version);
-      } catch {
-        if (!cancelled) setOpenCodeVersion(null);
-      }
-    };
-
-    void loadOpenCodeVersion();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   if (isMobile) {
     return (
       <div className="w-full space-y-6 pb-2">
@@ -84,11 +152,19 @@ export const AboutSettings: React.FC = () => {
           <OpenChamberLogo width={72} height={72} />
           <h2 className={`mt-4 ${SETTINGS_BRAND_TITLE_CLASS}`}>OpenChamber</h2>
           <div className="mt-2 space-y-1 typography-ui text-muted-foreground">
-            <p>{t('aboutDialog.openChamberVersionLabel', { version: currentVersion })}</p>
-            <p>{t('aboutDialog.openCodeVersionLabel', { version: openCodeVersion || t('settings.openchamber.about.state.unknown') })}</p>
+            {isNativeApp ? <>
+              <p>{t('settings.openchamber.about.native.serverOpenChamberVersion', { version: currentVersion })}</p>
+              <p>{t('settings.openchamber.about.native.serverOpenCodeVersion', { version: openCodeVersion || t('settings.openchamber.about.state.unknown') })}</p>
+              {nativeAppVersion && <p>{t('settings.openchamber.about.native.appVersion', { version: nativeAppVersion })}</p>}
+            </> : <>
+              <p>{t('aboutDialog.openChamberVersionLabel', { version: currentVersion })}</p>
+              <p>{t('aboutDialog.openCodeVersionLabel', { version: openCodeVersion || t('settings.openchamber.about.state.unknown') })}</p>
+            </>}
           </div>
           <InstanceServiceUrls />
         </div>
+
+        {openCodeUpdateControls && <div className="flex justify-center text-center">{openCodeUpdateControls}</div>}
 
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex items-center justify-center gap-5">
@@ -145,6 +221,8 @@ export const AboutSettings: React.FC = () => {
             <span className="typography-meta text-muted-foreground font-mono">{openCodeVersion || t('settings.openchamber.about.state.unknown')}</span>
           </div>
         </div>
+
+        {openCodeUpdateControls && <div className="px-4 py-3 border-b border-border/40">{openCodeUpdateControls}</div>}
 
         <div className="flex flex-col gap-2 border-b border-border/40 px-4 py-3 @xl:flex-row @xl:items-center @xl:justify-between">
           <span className={SETTINGS_FIELD_LABEL_CLASS}>{t('settings.openchamber.about.field.instanceUrls')}</span>

@@ -159,16 +159,10 @@ the same indentation as the project that owns them, so nesting was invisible.
   row divider instead of a zone break. Colored `bg-border/60`
   (`--interactive-border`); `--surface-subtle` is too close to the sidebar
   background to register.
-- The recent separator lives in `SidebarActivitySections` rather than on the
-  first project, so it exists only when the recent zone actually renders.
-- Every divider clears 12px above and below, measured from the adjacent row or
-  header box. That spacing is assembled from parts that do not naturally agree:
-  the scroller's `space-y-1.5` between project items, the group body's `pb-2`,
-  the zone header's `py-1`, and the recent wrapper's own bottom padding. The
-  project separator therefore carries `-mt-1.5 pb-2` (cancelling the inherited
-  6px gap and re-adding it below the line), and the recent wrapper drops to
-  `pb-0.5`. Left alone, the first project sat 18px below its divider while the
-  rest sat 8px.
+- The virtualized row renderer draws a divider above each project header except
+  the first row, including the boundary after the recent zone when it renders.
+  Keep the divider inside the measured row so virtualization accounts for its
+  height; the adjacent row's section spacing is handled by `SessionSidebarRows`.
 - Worktree and archived sub-groups render inside a `pl-5` block, so the
   sub-header and its sessions indent together under the project. The 20px step
   is derived, not chosen by eye: the project header icon starts at 16px and the
@@ -178,11 +172,11 @@ the same indentation as the project that owns them, so nesting was invisible.
   levels. Re-measure these numbers if upstream changes the header's `pl-4`, the
   scroller's `pl-2.5`, or the session row's `pl-[26px]`.
 
-**Files.** `packages/ui/src/components/session/sidebar/projects/SessionProjectScroller.tsx`,
-`recent/SidebarActivitySections.tsx`, `projects/sortableItems.tsx` (new
-`showTopSeparator` prop). Fixture: `packages/web/src/visual-fixtures/sidebarProjectsFixture.tsx`.
+**Files.** `packages/ui/src/components/session/sidebar/projects/SessionProjectScroller.tsx`
+(virtualized row rendering handles project boundaries and nested group rows).
+Fixture: `packages/web/src/visual-fixtures/sidebarProjectsFixture.tsx`.
 
-**On conflict.** All three edits are small and local. If upstream restructures
+**On conflict.** These edits are small and local. If upstream restructures
 the zone rendering, re-apply the intent: one inset hairline per zone boundary,
 and one indentation step for groups that carry their own sub-header.
 

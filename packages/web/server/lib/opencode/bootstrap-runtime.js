@@ -1,3 +1,5 @@
+import { registerNotificationEmitRoutes } from '../notifications/emit-route.js';
+
 export const createBootstrapRuntime = (dependencies) => {
   const {
     createUiAuth,
@@ -63,6 +65,7 @@ export const createBootstrapRuntime = (dependencies) => {
       getCachedZenModels,
       setAutoAcceptSession,
       agentToolRuntime,
+      pluginNotificationEmitter,
     } = options;
 
     const uiAuthController = createUiAuth({
@@ -93,6 +96,13 @@ export const createBootstrapRuntime = (dependencies) => {
 
     registerAgentToolRoutes(app, { express, agentToolRuntime });
 
+    const notificationEmitRoutes = registerNotificationEmitRoutes(app, {
+      express,
+      isAgentToolRequestAuthorized: (req) => agentToolRuntime?.authorizeRequest?.(req) === true,
+      emitter: pluginNotificationEmitter,
+    });
+    notificationEmitRoutes.registerPluginRoute();
+
     registerAuthAndAccessRoutes(app, {
       express,
       tunnelAuthController,
@@ -108,6 +118,8 @@ export const createBootstrapRuntime = (dependencies) => {
       readSettingsFromDiskMigrated,
       normalizeTunnelSessionTtlMs,
     });
+
+    notificationEmitRoutes.registerApiRoute();
 
     registerTtsRoutes(app, { sayTTSCapability });
 
@@ -130,6 +142,7 @@ export const createBootstrapRuntime = (dependencies) => {
       writeSseEvent,
       getSessionActivitySnapshot: sessionRuntime.getSessionActivitySnapshot,
       getSessionStateSnapshot: sessionRuntime.getSessionStateSnapshot,
+      getPendingBlockingRequestsSnapshot: sessionRuntime.getPendingBlockingRequestsSnapshot,
       getSessionAttentionSnapshot: sessionRuntime.getSessionAttentionSnapshot,
       getSessionState: sessionRuntime.getSessionState,
       getSessionAttentionState: sessionRuntime.getSessionAttentionState,
@@ -141,8 +154,16 @@ export const createBootstrapRuntime = (dependencies) => {
     });
 
     registerOpenChamberRoutes(app, {
+      fs,
+      os,
+      path,
+      process,
+      server,
+      __dirname,
+      openchamberDataDir,
       modelsDevApiUrl,
       modelsMetadataCacheTtl,
+      readSettingsFromDiskMigrated,
       fetchFreeZenModels,
       getCachedZenModels,
     });

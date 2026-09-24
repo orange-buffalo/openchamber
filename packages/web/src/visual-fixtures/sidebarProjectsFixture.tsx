@@ -1,7 +1,7 @@
-import type { Session } from "@opencode-ai/sdk/v2";
+import type { Session } from "@openchamber/ui/lib/opencode/model";
 
 import { SessionProjectScroller } from "@openchamber/ui/components/session/sidebar/projects/SessionProjectScroller";
-import { SidebarActivitySections } from "@openchamber/ui/components/session/sidebar/recent/SidebarActivitySections";
+import { buildSessionSidebarRowModel } from "@openchamber/ui/components/session/sidebar/sessionSidebarRowModel";
 import type {
   SessionGroup,
   SessionNode,
@@ -145,6 +145,32 @@ const EMPTY_ORDER_INDEX: Map<string, number> = new Map();
 const noop = () => {};
 
 export function SidebarProjectsFixture(): React.ReactNode {
+  const rowModel = buildSessionSidebarRowModel({
+    mode: 'normal',
+    sections: projectSections,
+    authoritativeSections: projectSections,
+    chatGroup: null,
+    recentSections: [{ key: 'active-now', items: recentItems }],
+    showRecentSection: true,
+    foldersMap: {},
+    groupSearchDataByGroup: new WeakMap(),
+    normalizedQuery: '',
+    collapsedProjects: EMPTY_STRING_SET,
+    collapsedGroups: EMPTY_STRING_SET,
+    collapsedFolders: EMPTY_STRING_SET,
+    collapsedActivities: EMPTY_STRING_SET,
+    expandedParents: EMPTY_STRING_SET,
+    visibleCountByContainer: new Map(),
+    pinnedSessionIds: EMPTY_STRING_SET,
+    sessionOrderIndex: EMPTY_ORDER_INDEX,
+    groupStatusByKey: new Map(),
+    folderAuthorityByOwner: new Map(),
+    activeProjectId: 'openchamber',
+    singleProjectMode: false,
+    singleProjectId: null,
+    showOnlyMainWorkspace: false,
+    hideDirectoryControls: false,
+  });
   const sessionTreeActions = {
     setEditingId: noop,
     setEditTitle: noop,
@@ -159,6 +185,10 @@ export function SidebarProjectsFixture(): React.ReactNode {
     setDeleteSessionConfirm: noop,
     startFolderRename: noop,
     setCopiedSessionId: noop,
+    editingRowKey: null,
+    setEditingRowKey: noop,
+    onSessionSelected: noop,
+    resetSessionSearch: noop,
     startSessionWorktreeMenuLoad: () => ({ cachedTargets: [], refreshTargets: Promise.resolve([]) }),
   };
 
@@ -166,41 +196,22 @@ export function SidebarProjectsFixture(): React.ReactNode {
     <div className="flex h-[860px] w-[300px] flex-col bg-sidebar text-sidebar-foreground">
       <SessionProjectScroller
         model={{
-          topContent: (
-          <SidebarActivitySections
-            sections={[
-              { key: "active-now", title: "recent", items: recentItems },
-            ]}
-            pinnedSessionIds={EMPTY_STRING_SET}
-            expandedParents={EMPTY_STRING_SET}
-            hasSessionSearchQuery={false}
-            normalizedSessionSearchQuery=""
-            notifyOnSubtasks={false}
-            editingId={null}
-            editTitle=""
-            copiedSessionId={null}
-            openSidebarMenuKey={null}
-            mobileVariant={false}
-            alwaysShowActions={false}
-            isDesktopShellRuntime={false}
-            {...sessionTreeActions}
-          />
-          ),
+          rowModel,
           sectionsForRender: projectSections,
           projectSections,
-          activeProjectId: "openchamber",
           singleProjectMode: false,
-          singleProjectId: null,
           emptyState: null,
           searchEmptyState: null,
           projectRepoStatus: new Map([["aionify", true]]),
-          stuckProjectHeaders: EMPTY_STRING_SET,
-          projectHeaderSentinelRefs: { current: new Map() },
           state: {
             editingId: null,
             openSidebarMenuKey: null,
             setOpenSidebarMenuKey: noop,
             visibleSessionCountByGroup: new Map(),
+            collapsedActivityKeys: EMPTY_STRING_SET,
+            setCollapsedActivityKeys: noop,
+            visibleActivityCountByKey: new Map(),
+            setVisibleActivityCountByKey: noop,
           },
           groupProps: {
             hasSessionSearchQuery: false,
@@ -214,7 +225,6 @@ export function SidebarProjectsFixture(): React.ReactNode {
             notifyOnSubtasks: false,
             expandedParents: EMPTY_STRING_SET,
             editTitle: "",
-            copiedSessionId: null,
             folderRename: null,
             setFolderRenameDraft: noop,
             clearFolderRename: noop,
@@ -225,16 +235,14 @@ export function SidebarProjectsFixture(): React.ReactNode {
         }}
         view={{
           homeDirectory: "/home/dev",
-          collapsedProjects: EMPTY_STRING_SET,
-          showOnlyMainWorkspace: false,
           hasSessionSearchQuery: false,
-          normalizedSessionSearchQuery: "",
           hideDirectoryControls: false,
-          isDesktopShellRuntime: false,
           stickyZoneHeaders: false,
           mobileVariant: false,
           alwaysShowActions: false,
           projectSortOrder: "manual",
+          worktreeSortOrder: "manual",
+          timelineView: false,
         }}
         actions={{
           group: {

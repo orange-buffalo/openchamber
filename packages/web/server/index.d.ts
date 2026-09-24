@@ -7,6 +7,7 @@ export interface WebUiServerController {
   getPort: () => number | null;
   getOpenCodePort: () => number | null;
   isReady: () => boolean;
+  getManagedOpenCodePreflight: () => Promise<boolean>;
   restartOpenCode: () => Promise<void>;
   stop: (options?: { exitProcess?: boolean }) => Promise<void>;
 }
@@ -31,7 +32,8 @@ export interface StartWebUiServerOptions {
   attachSignals?: boolean;
   exitOnShutdown?: boolean;
   uiPassword?: string | null;
-  desktopUpdater?: DesktopUpdater;
+  /** App-owned built-in resources outside Electron's ASAR archive. */
+  builtInExtensionsDir?: string;
 }
 
 export declare function startWebUiServer(

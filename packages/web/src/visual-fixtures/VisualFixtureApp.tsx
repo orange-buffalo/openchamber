@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { TextPart } from "@opencode-ai/sdk/v2";
+import type { TextPart } from "@openchamber/ui/lib/opencode/model";
 
 import AssistantTextPart from "@openchamber/ui/components/chat/message/parts/AssistantTextPart";
 
