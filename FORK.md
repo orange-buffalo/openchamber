@@ -105,7 +105,7 @@ to an upstream endpoint on a timer.
   `installingUpdate` quit path. `desktop_restart` is now a plain relaunch.
 - **vscode**: the `api:openchamber:update-check` bridge handler, its webview
   route, and the install-id generation feeding it.
-- 36 update i18n keys across every locale (12 since upstream added Turkish).
+- Update i18n keys across every locale, including Dutch added in v2.1.0.
 
 Also removed the **"Send anonymous usage reports" setting**: its only consumer
 was the update check's telemetry payload, so it no longer controlled anything,
@@ -143,6 +143,10 @@ travelled from `electron/main.mjs` through `web/server/index.js` and
 Follow the whole chain out. `reportUsage` behaves the same way now that
 settings live in `lib/settings/registry.ts` — drop the field and re-run
 `bun run settings-registry:generate`, or the checked-in snapshots drift.
+
+The v2.1.0 sync keeps the new enterprise-policy route and VS Code bridge while
+removing the adjacent update handlers. It also keeps mobile scheduled tasks and
+Android back-layer handling without restoring the upstream update page.
 
 ---
 
@@ -293,3 +297,21 @@ can conflict, and it is two lines next to `OpenCodeUpdateToast`. If upstream
 reinstates its own mobile update path, prefer this one — it points at this
 fork's APK. `FORK_ANDROID_MANIFEST_URL` hard-codes the repository and is the one
 thing to change if the fork moves.
+
+---
+
+## 8. Web artifact container on main pushes
+
+**Intent.** Publish the built web package from each `main` revision to GHCR,
+with an immutable commit tag and a `latest` tag for the newest successful build.
+
+**Shape.** The workflow builds and packs the web package, places its tarball and
+checksum in a multi-architecture artifact image, verifies the published bytes,
+then advances `latest`. Its Bun version follows the root package manager pin,
+updated to 1.4.2 during the v2.1.0 sync.
+
+**Files.** `.github/workflows/web-artifact-image.yml`,
+`packages/web/Dockerfile.artifact`, `packages/web/.dockerignore`.
+
+**On conflict.** Keep the artifact publication workflow and match upstream's
+package manager version. Use GitHub-hosted runners for fork push builds.

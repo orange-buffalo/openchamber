@@ -53,6 +53,80 @@ These are the failures that actually bite in this codebase. They apply to fork c
 - One failed entity must not erase or block unrelated complete entities.
 - Runtime-specific differences must be intentional and visible in code.
 
+## Communication
+
+You and the maintainer are two people solving a problem together — talk like a trusted colleague, not a report generator. Plain words, short sentences, mechanisms explained through what the user experiences. Warm and direct, never familiar. A reply is something read in minutes, not a separate reading task: put the conclusion first and stand behind it. Answer in the language the maintainer addressed you in; code, comments, and docs stay in English.
+
+When writing or editing user-facing text — docs, UI copy, PR/issue comments, READMEs — load `.agents/skills/communication-style/SKILL.md` and apply its checklist.
+
+## Documentation Discovery
+
+Before changing a module, search for the nearest `DOCUMENTATION.md`; before package-level work, read its `README.md`. Discover docs dynamically under `packages/**/DOCUMENTATION.md` rather than relying on a static exhaustive map.
+
+High-value anchors:
+
+- Sync: `packages/ui/src/sync/DOCUMENTATION.md`
+- Stores: `packages/ui/src/stores/DOCUMENTATION.md`
+- CLI: `packages/web/bin/lib/DOCUMENTATION.md`
+- Performance measurement tooling: `scripts/perf/DOCUMENTATION.md`
+- VS Code runtime: `packages/vscode/src/DOCUMENTATION.md`
+- Electron: `packages/electron/README.md`
+- Mobile: `packages/mobile/README.md`
+- SDK: `packages/sdk/DOCUMENTATION.md`
+
+## Project Skills
+
+Project skills live under `.agents/skills/*/SKILL.md`. Load the relevant skill
+when the local precedent is not obvious, as described in Reference Material.
+Skills are canonical for their detailed workflows and checklists.
+
+
+| Trigger | Skill |
+|---|---|
+| Source/dependency changes, exports or package contracts, build/generated assets, or module ownership | `openchamber-change-discipline` |
+| CLI commands, prompts, terminal output, non-TTY, `--quiet`, or `--json` behavior | `clack-cli-patterns` |
+| Shared UI data access, OpenCode SDK or server routes, `RuntimeAPIs`, runtime auth/URLs, bridges, or runtime switching | `ui-api-decoupling` |
+| Electron main/preload, IPC, native UI, updater, deep links, SSH/tunnels, packaging, or child processes | `desktop-shell` |
+| Session sync, bootstrap/reconnect, reducers, polling, optimistic state, queues, live status, reconciliation, or directory-scoped caches | `sync-state-invariants` |
+| Isolated-space trust boundaries: hardening, networks and gatekeeper policy, exec and lifecycle, grants and credentials, code transfer and apply, dispatcher isolation, preview content, or protection tests | `isolated-space-boundary` |
+| Conversation content leaving for a destination other than the session's provider, a new way into this machine (listener, tunnel, relay, pairing, share link), provider/key/endpoint entry, usage reporting, or enterprise mode and its policy file | `enterprise-boundary` |
+| Render/store/event hot paths, large lists, caches/indexes, or reported lag, freezes, CPU/memory, startup, or performance regressions | `performance-engineering` |
+| WebSocket, SSE, streaming transport, runtime transport internals, or private relay | `relay-transport` |
+| UI components, styling, colors, buttons, or icons | `theme-system` |
+| User-facing or accessible UI text, labels, aria, toasts, dialogs, or navigation copy | `locale-ui-patterns` |
+| Settings UI, settings dialogs, configuration surfaces, or settings search | `settings-ui-patterns` |
+| Sortable or drag-to-reorder behavior, especially `@dnd-kit` and touch/wrapping layouts | `drag-to-reorder` |
+| iOS Simulator build, launch, preview, gestures, or `serve-sim` control | `serve-sim` |
+| The maintainer explicitly asks to update the changelog (main app or VS Code extension) — the only time `changelog/unreleased.md` is edited | `update-changelog` |
+| Creating or editing skills, `AGENTS.md`, or docs reached through agent instructions/context pointers | `writing-for-agents` |
+| OpenCode routes, events, message/session shapes, plugins, the pinned OpenCode version, "what's new in OpenCode 2.0.x", or a bug that looks like OpenCode behaving unexpectedly | `opencode-v2` |
+| Reviewing a single pull request or drafting a PR verdict/close/review comment | `pr-review` |
+| Triaging, cleaning up, or batch-processing the open PR queue | `triage-prs` |
+| Triaging, cleaning up, or batch-processing the issue backlog | `triage-issues` |
+
+Pure code-reading or explanation does not require implementation skills unless needed to interpret a specialized subsystem.
+
+### Skill Ownership
+
+Keep each cross-cutting rule with one canonical owner; companion skills add only domain-specific consequences and a pointer to that owner.
+
+| Concern | Canonical skill |
+|---|---|
+| Change scope, abstraction discipline, and validation risk | `openchamber-change-discipline` |
+| State authority, reconciliation, optimistic state, and lifecycle correctness | `sync-state-invariants` |
+| Isolated-space trust boundaries and the evidence that each one holds | `isolated-space-boundary` |
+| Enterprise mode: what counts as egress or exposure, how it is gated, and administrator knobs | `enterprise-boundary` |
+| Measurement, hot-path cost, caching performance, and optimization evidence | `performance-engineering` |
+| Shared UI API and runtime boundaries | `ui-api-decoupling` |
+| WebSocket/SSE and private relay mechanics | `relay-transport` |
+| Electron native ownership and privilege boundary | `desktop-shell` |
+| UI tokens, primitives, icons, and animation styling | `theme-system` |
+| Settings composition and search behavior | `settings-ui-patterns` |
+| User-facing text and localization | `locale-ui-patterns` |
+| Agent-facing document structure and context pointers | `writing-for-agents` |
+
+Before adding guidance to a skill, identify its canonical owner. If another skill owns the rule, add a precise companion pointer and only the local consequence; do not copy the rule.
+
 ## Validation
 
 Scope checks to what the diff touches. Full-workspace sweeps exist but are rarely the right default.

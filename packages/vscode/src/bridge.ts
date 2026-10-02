@@ -79,7 +79,7 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
     );
     if (permissionAutoAcceptResponse) return permissionAutoAcceptResponse;
 
-    const standardGitResponse = await handleStandardGitBridgeMessage({ id, type, payload });
+    const standardGitResponse = await handleStandardGitBridgeMessage({ id, type, payload }, ctx);
     if (standardGitResponse) {
       return standardGitResponse;
     }
@@ -165,6 +165,7 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
       case 'api:github/auth:activate':
       case 'api:github/me':
       case 'api:github/pr:status':
+      case 'api:github/pr:summaries':
       case 'api:github/pr:create':
       case 'api:github/pr:update':
       case 'api:github/pr:merge':

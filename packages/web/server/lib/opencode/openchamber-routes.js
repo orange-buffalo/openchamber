@@ -1,3 +1,5 @@
+import { publicEnterprisePolicy } from '../enterprise-mode.js';
+
 export const registerOpenChamberRoutes = (app, dependencies) => {
   const {
     modelsDevApiUrl,
@@ -5,6 +7,12 @@ export const registerOpenChamberRoutes = (app, dependencies) => {
     fetchFreeZenModels,
     getCachedZenModels,
   } = dependencies;
+
+  // Whether an administrator turned on enterprise mode, and by which source.
+  // Pinned endpoints and keys never leave the server.
+  app.get('/api/openchamber/enterprise-policy', (_req, res) => {
+    res.json(publicEnterprisePolicy());
+  });
 
   app.get('/api/openchamber/models-metadata', async (_req, res) => {
     try {

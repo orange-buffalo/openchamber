@@ -14,6 +14,7 @@ import { normalizeWindowsDriveLetter, pathsEqualWithNormalizedDriveLetter } from
 import { resolveWorkspaceFolders } from './workspaceResolver';
 import { reconstructOriginalContentFromPatch } from './patchReconstruction';
 import type { BridgeContext, BridgeResponse } from './bridge';
+import { ENTERPRISE_MODE_ERROR, isEnterpriseMode, publicEnterprisePolicy } from '../../web/server/lib/enterprise-mode.js';
 
 const isSessionNotFound = (error: Error): boolean => error.name === 'SessionNotFoundError';
 
@@ -210,6 +211,12 @@ export async function handleSystemBridgeMessage(
       return { id, type, success: true, data: { models } };
     }
 
+    // The same machine policy the web server enforces (policy file or
+    // OPENCHAMBER_ENTERPRISE_MODE in the editor's environment).
+    case 'api:openchamber:enterprise-policy': {
+      return { id, type, success: true, data: publicEnterprisePolicy() };
+    }
+
     case 'editor:openFile': {
       const { path: filePath, line, column } = payload as { path: string; line?: number; column?: number };
       try {
@@ -324,8 +331,7 @@ export async function handleSystemBridgeMessage(
           ? directory.trim()
           : ctx?.manager?.getWorkingDirectory();
         const sources = getProviderSources(providerId, workingDirectory);
-        const auth = getProviderAuth(providerId);
-        sources.auth.exists = Boolean(auth);
+        sources.auth.exists = Boolean(await getProviderAuth(providerId));
         const config = getStoredProviderConfig(providerId, workingDirectory);
         return { id, type, success: true, data: { providerId, sources, config } };
       } catch (error) {
@@ -341,18 +347,24 @@ export async function handleSystemBridgeMessage(
         config,
         scope,
         directory,
+        hasCredential,
       } = (payload || {}) as {
         providerID?: string;
         providerId?: string;
         config?: unknown;
         scope?: string;
         directory?: string;
+        hasCredential?: boolean;
       };
       const providerId = (typeof providerID === 'string' && providerID.trim())
         || (typeof providerIdAlias === 'string' && providerIdAlias.trim())
         || '';
       if (!providerId) {
         return { id, type, success: false, error: 'Provider ID is required' };
+      }
+      // Enterprise mode: providers come only from the OpenCode config.
+      if (isEnterpriseMode()) {
+        return { id, type, success: false, error: ENTERPRISE_MODE_ERROR };
       }
       if (!config || typeof config !== 'object' || Array.isArray(config)) {
         return { id, type, success: false, error: 'Provider config is required' };
@@ -370,7 +382,7 @@ export async function handleSystemBridgeMessage(
           config,
           workingDirectory,
           normalizedScope,
-          { hasStoredAuth: Boolean(getProviderAuth(providerId)) },
+          { hasStoredAuth: hasCredential === true || Boolean(await getProviderAuth(providerId)) },
         );
         await ctx?.manager?.restart();
         return {
@@ -394,7 +406,7 @@ export async function handleSystemBridgeMessage(
 
     case 'api:quota:providers': {
       try {
-        const providers = listConfiguredQuotaProviders();
+        const providers = await listConfiguredQuotaProviders();
         return { id, type, success: true, data: { providers } };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

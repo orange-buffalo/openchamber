@@ -32,6 +32,8 @@ import { FilesystemError, parseFilesystemErrorReason } from "@/lib/api/files-err
 import type { ContextPartMetadata } from "@/lib/messages/contextParts"
 import { getRuntimeUrlResolver } from "@/lib/runtime-url"
 import { runtimeFetch } from "@/lib/runtime-fetch"
+import { isSpaceDirectory } from "@/lib/spaces/space-route"
+import { spaceMarkSchema, type SpaceMark } from "@/lib/spaces/spaces-store"
 import { getRuntimeKey } from "@/lib/runtime-switch"
 import { getRegisteredRuntimeAPIs } from "@/contexts/runtimeAPIRegistry"
 import { markStartupTrace } from "@/lib/startupTrace"
@@ -60,7 +62,9 @@ import {
   type Vcs,
 } from "./model"
 import { ascendingId } from "./ids"
-import { mergeConfigDocuments, projectAgent, projectMessages, projectProject, projectSession, projectVcs } from "./projection"
+import { runningShellFromWire, shellCancellationNote, type RunningShell } from "./background-shell"
+import { toJsonRecord } from "./json"
+import { deniesAnyProvider, mergeConfigDocuments, projectAgent, projectMessages, projectProject, projectSession, projectVcs } from "./projection"
 
 export type { OpenCodeClient }
 
@@ -70,6 +74,8 @@ const DEFAULT_BASE_URL = import.meta.env.VITE_OPENCODE_URL || "/api"
 const CONFIG_CACHE_TTL_MS = 10_000
 const OPENCODE_HEALTH_TIMEOUT_MS = 4_000
 const DEFAULT_SESSION_PAGE_LIMIT = 100
+/** How much of a running command's output the live view starts with. */
+const SHELL_OUTPUT_TAIL_BYTES = 64 * 1024
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -397,7 +403,15 @@ export type MessagePage = {
 export type SessionPage = {
   sessions: Session[]
   cursor: { previous?: string; next?: string }
+  /**
+   * The isolated spaces the host merged into a global page, one mark per space, when the
+   * feature is on. Absent on a per-directory page and while the feature is off.
+   */
+  spaces?: SpaceMark[]
 }
+
+// The global list carries the mark beside the SDK's own fields; the SDK types do not know it.
+const sessionPageSpacesSchema = z.object({ spaces: z.array(spaceMarkSchema).optional() })
 
 export type SessionListOptions = {
   directory?: string | null
@@ -455,14 +469,13 @@ const fsHomeResponseSchema = z.object({
   canonicalLegacyChatsRoot: fsAbsolutePathSchema.optional(),
 })
 
-/**
- * Metadata crosses the wire as JSON. Round-tripping drops what JSON cannot
- * carry (undefined, functions) and gives the value the wire type honestly.
- */
-const toJsonRecord = (value: Metadata | ContextPartMetadata): Metadata =>
-  // SAFETY: JSON.stringify emits only JSON values, so parsing its output back
-  // yields a record of JsonValue by construction.
-  JSON.parse(JSON.stringify(value)) as Metadata
+/** One context item admitted as a synthetic message; `id` is client-minted when given. */
+export type SyntheticContextInput = {
+  id?: string
+  text: string
+  metadata?: ContextPartMetadata
+  description?: string
+}
 
 const pageCursor = (cursor: { previous?: string | null; next?: string | null }) =>
   compact({ previous: cursor.previous ?? undefined, next: cursor.next ?? undefined })
@@ -784,9 +797,11 @@ class OpencodeService {
         parentID: options.parentID,
       }),
     )
+    const spaces = options.global ? sessionPageSpacesSchema.safeParse(response).data?.spaces : undefined
     return {
       sessions: response.data.map(projectSession),
       cursor: pageCursor(response.cursor),
+      ...(spaces ? { spaces } : {}),
     }
   }
 
@@ -1064,8 +1079,11 @@ class OpencodeService {
     providerID: string
     text: string
     files?: Array<FileInputLite>
-    /** Context items sent ahead of the prompt as synthetic messages. */
-    context?: Array<{ text: string; metadata?: ContextPartMetadata; description?: string }>
+    /**
+     * Context items sent ahead of the prompt as synthetic messages. A caller
+     * that supplies `messageId` also supplies the item ids, minted before it.
+     */
+    context?: SyntheticContextInput[]
     messageId?: string
     agentMentions?: Array<{ name: string; source?: { value: string; start: number; end: number } }>
     metadata?: Metadata
@@ -1076,6 +1094,11 @@ class OpencodeService {
   }): Promise<string> {
     this.assertRuntimeUnchanged(params.runtimeKey)
 
+    // Context ids are minted before the prompt's, so the transcript's id order
+    // matches the order the records are admitted in.
+    const context = (params.context ?? [])
+      .filter((item) => item.text.trim())
+      .map((item) => ({ ...item, id: item.id ?? ascendingId("msg") }))
     const messageId = params.messageId ?? ascendingId("msg")
     const files = await Promise.all((params.files ?? []).map((file) => this.toPromptFile(file)))
     const agents = (params.agentMentions ?? [])
@@ -1091,11 +1114,12 @@ class OpencodeService {
 
     assertProviderCircuitClosed(params.providerID)
 
-    const admitSynthetic = async (item: { text: string; metadata?: ContextPartMetadata; description?: string }) => {
+    const admitSynthetic = async (item: SyntheticContextInput) => {
       this.assertRuntimeUnchanged(params.runtimeKey)
       await call("session.synthetic", () =>
         this.clientFor(params.directory).session.synthetic({
           sessionID: params.id,
+          id: item.id,
           text: item.text,
           description: item.description,
           metadata: item.metadata ? toJsonRecord(item.metadata) : undefined,
@@ -1124,8 +1148,7 @@ class OpencodeService {
       await this.applySendSelection(params.id, { model: params.model, agent: params.agent }, params.directory, params.runtimeKey)
       const skills = await this.resolveSkillMentions(params.skills?.names ?? [], params.directory)
       const unresolvedInstruction = params.skills?.instructionFor(skills.unresolved) ?? null
-      for (const item of params.context ?? []) {
-        if (!item.text.trim()) continue
+      for (const item of context) {
         await admitSynthetic(item)
       }
       if (unresolvedInstruction) await admitSynthetic({ text: unresolvedInstruction })
@@ -1166,7 +1189,7 @@ class OpencodeService {
     command: string
     arguments?: string
     files?: Array<FileInputLite>
-    context?: Array<{ text: string; metadata?: ContextPartMetadata; description?: string }>
+    context?: SyntheticContextInput[]
     delivery?: SessionInboxDelivery
     directory?: string | null
   }): Promise<void> {
@@ -1179,6 +1202,7 @@ class OpencodeService {
       await call("session.synthetic", () =>
         this.clientFor(params.directory).session.synthetic({
           sessionID: params.id,
+          id: item.id,
           text: item.text,
           description: item.description,
           metadata: item.metadata ? toJsonRecord(item.metadata) : undefined,
@@ -1203,6 +1227,16 @@ class OpencodeService {
   async abortSession(id: string, directory?: string | null): Promise<boolean> {
     const result = await call("session.interrupt", () => this.clientFor(directory).session.interrupt({ sessionID: id }))
     return result.interrupted
+  }
+
+  /**
+   * Moves the work the turn is blocked on (a running shell command, a
+   * subagent it waits for) to the background. The work keeps running, the
+   * agent is told to move on, and the result is handed back when it settles.
+   * A no-op when nothing blocks.
+   */
+  async backgroundSessionWork(id: string, directory?: string | null): Promise<void> {
+    await call("session.background", () => this.clientFor(directory).session.background({ sessionID: id }))
   }
 
   /** Runs a shell command inside the session transcript. Returns the shell message id. */
@@ -1263,10 +1297,16 @@ class OpencodeService {
    * `null` vs `{}` matters for reconnect resync: an empty map means every
    * session is idle, so a candidate missing from it is authoritatively idle.
    * A failure must not be conflated with that.
+   *
+   * The host's snapshot is global: one read for every directory of the host.
+   * A directory inside an isolated space is asked of that space instead,
+   * because the host's snapshot never covers a space's sessions, and an empty
+   * answer from the host would settle a turn that is running inside.
    */
-  async getActiveSessionStatuses(): Promise<Record<string, SessionStatus> | null> {
+  async getActiveSessionStatuses(directory?: string | null): Promise<Record<string, SessionStatus> | null> {
     try {
-      const active = activeSessionSnapshotSchema.parse(await call("session.active", () => this.client.session.active()))
+      const client = isSpaceDirectory(directory) && directory ? this.getScopedSdkClient(directory) : this.client
+      const active = activeSessionSnapshotSchema.parse(await call("session.active", () => client.session.active()))
       const statuses: Record<string, SessionStatus> = {}
       for (const sessionID of Object.keys(active)) statuses[sessionID] = { type: "busy" }
       return statuses
@@ -1480,6 +1520,70 @@ class OpencodeService {
     return dedupeById(lists)
   }
 
+  // -------------------------------------------------------------------------
+  // Shell commands the agent started (background commands)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Commands still running in the directory on behalf of a session, keyed by
+   * the directory OpenCode resolved it to (symlinks resolved), which is the
+   * directory its shell events carry. Throws on fetch failure.
+   */
+  async listRunningShells(directory: string): Promise<{ directory: string; shells: RunningShell[] }> {
+    const response = await call("shell.list", () => this.clientFor(directory).shell.list())
+    return {
+      directory: response.location.directory ?? directory,
+      shells: response.data.flatMap((info) => runningShellFromWire(info) ?? []),
+    }
+  }
+
+  /**
+   * The newest part of a command's captured output, and the cursor to read
+   * on from. Without a cursor the read starts `tailBytes` before the end.
+   */
+  async readShellOutput(
+    shellID: string,
+    directory: string,
+    cursor?: number,
+    tailBytes = SHELL_OUTPUT_TAIL_BYTES,
+  ): Promise<{ output: string; cursor: number; skipped: boolean }> {
+    const client = this.clientFor(directory)
+    let start = cursor
+    if (start === undefined) {
+      const end = await call("shell.output", () => client.shell.output({ id: shellID, cursor: Number.MAX_SAFE_INTEGER }).then((r) => r.data))
+      start = Math.max(0, end.size - tailBytes)
+    }
+    const page = await call("shell.output", () => client.shell.output({ id: shellID, cursor: start, limit: tailBytes }).then((r) => r.data))
+    return { output: page.output, cursor: page.cursor, skipped: cursor === undefined && start > 0 }
+  }
+
+  /**
+   * Stops a background command the agent started. The agent is told first,
+   * in a note that does not wake it, that the error OpenCode is about to
+   * report is the user's stop (see `shellCancellationNote`); the command is
+   * killed only once the note is in. Throws when either step fails, and
+   * nothing is killed when the note could not be delivered.
+   */
+  async stopBackgroundShell(params: {
+    sessionID: string
+    sessionDirectory?: string | null
+    shellID: string
+    shellDirectory: string
+    command: string
+  }): Promise<void> {
+    const note = shellCancellationNote({ shellID: params.shellID, command: params.command })
+    await call("session.synthetic", () =>
+      this.clientFor(params.sessionDirectory).session.synthetic({
+        sessionID: params.sessionID,
+        text: note.text,
+        description: note.description,
+        metadata: note.metadata,
+        resume: false,
+      }),
+    )
+    await call("shell.remove", () => this.clientFor(params.shellDirectory).shell.remove({ id: params.shellID }))
+  }
+
   /** Global pending items when requested, then each distinct directory. */
   private uniqueDirectories(entries: Array<string | null | undefined> | undefined, includeGlobal = true): Array<string | null> {
     const unique = new Set<string>()
@@ -1498,6 +1602,12 @@ class OpencodeService {
     this.configCacheGeneration += 1
     this.configInFlight.clear()
     this.configCache.clear()
+  }
+
+  /** Whether OpenCode's config for a directory restricts providers with a `provider.use` deny policy. */
+  async configDeniesAnyProvider(directory?: string | null): Promise<boolean> {
+    const entries = await call("config.get", () => this.clientFor(this.resolveDirectory(directory)).config.get())
+    return deniesAnyProvider(entries)
   }
 
   /** Effective configuration for a directory: every discovered document folded, highest priority last. */
@@ -1547,20 +1657,34 @@ class OpencodeService {
     return this.getProvidersForConfig(this.currentDirectory)
   }
 
-  /** Providers, models, and the default model OpenCode resolves for a directory. */
-  async getProvidersForConfig(directory?: string | null): Promise<ProviderCatalog> {
+  /**
+   * Providers, models, and the default model OpenCode resolves for a directory.
+   *
+   * The providers of a directory inside an isolated space are the host's: a space offers the
+   * host's catalog, and the host refuses its provider routes across the boundary, so they are
+   * asked of the host with no directory. Models and the default come from the space as usual.
+   *
+   * `fresh`: a request already in flight started before the caller's reason to re-read (a
+   * catalog event), so it may carry the old catalog. Wait it out and read again.
+   */
+  async getProvidersForConfig(directory?: string | null, options?: { fresh?: boolean }): Promise<ProviderCatalog> {
     const effectiveDirectory = this.resolveDirectory(directory)
     const key = effectiveDirectory ?? ""
 
-    const existing = this.providerCatalogInFlight.get(key)
+    let existing = this.providerCatalogInFlight.get(key)
+    if (existing && options?.fresh) {
+      await existing.catch(() => undefined)
+      existing = this.providerCatalogInFlight.get(key)
+    }
     if (existing) {
       return existing
     }
 
     const request = (async () => {
       const client = this.clientFor(effectiveDirectory)
+      const providerClient = isSpaceDirectory(effectiveDirectory) ? this.client : client
       const [providers, models, fallback] = await Promise.all([
-        call("provider.list", () => client.provider.list().then((r) => r.data)),
+        call("provider.list", () => providerClient.provider.list().then((r) => r.data)),
         call("model.list", () => client.model.list().then((r) => r.data)),
         call("model.default", () => client.model.default().then((r) => r.data)).catch(() => undefined),
       ])
