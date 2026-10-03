@@ -7,6 +7,26 @@ re-applying the intent rather than by reading the diff and guessing.
 
 Update this file in the same commit as the change it describes.
 
+## Usage-limit automatic retry
+
+Continue a task after a provider usage-limit error without resending its original
+prompt or attachments. The OpenChamber server stores the schedule and resumes
+through OpenCode's synthetic-input API just after a known reset, or after 30
+minutes when the reset is unknown. Never schedule a known reset more than 10
+hours away. Only exhausted Codex usage windows constrain the reset time.
+
+Show the reset and retry time in the assistant error panel, with a cancellation
+button. Cancellation survives server restarts. New work, interruption, archive,
+revert, deletion, and a newer latest message prevent stale retries. Persisted
+schedule failures must remain failures, not an empty success. Retry status is
+polled only while scheduled, apart from three short initial reads per error.
+
+Web, Electron, hosted mobile, and Capacitor use the server scheduler. VS Code
+shows the reset but explicitly does not support scheduling. Isolated-space
+sessions are not automatically scheduled by the host scheduler. The pure parser
+in `packages/web/server/lib/usage-limit-retry/policy.js` is also bundled into the
+shared UI; it has no server imports. Keep server deployment self-contained.
+
 ## How to use this during an upstream sync
 
 ```sh

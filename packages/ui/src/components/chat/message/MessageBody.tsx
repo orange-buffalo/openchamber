@@ -15,6 +15,7 @@ import { isEmptyTextPart, extractTextContent } from './partUtils';
 import { FadeInOnReveal } from './FadeInOnReveal';
 import { Button } from '@/components/ui/button';
 import { ErrorResponseDetails } from '@/components/chat/ErrorResponseDetails';
+import { UsageLimitRetry } from '@/components/chat/UsageLimitRetry';
 import { SaveProjectPlanDialog } from '@/components/session/SaveProjectPlanDialog';
 import { ForkSessionDialog, type ForkSessionExecution } from '@/components/session/ForkSessionDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -2394,7 +2395,10 @@ const AssistantMessageBody = React.memo(({
                                         </LongErrorText>
                                     </div>
                                 </div>
-                                {errorResponseBody ? <ErrorResponseDetails body={errorResponseBody} className="mt-1 pl-7" /> : null}
+                                {errorResponseBody ? <>
+                                    {sessionId && <UsageLimitRetry body={errorResponseBody} sessionId={sessionId} messageId={messageId} observedAt={messageCompletedAt ?? messageCreatedAt ?? 0} />}
+                                    <ErrorResponseDetails body={errorResponseBody} className="mt-1 pl-7" />
+                                </> : null}
                             </div>
                         </FadeInOnReveal>
                     )}

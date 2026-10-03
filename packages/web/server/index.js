@@ -103,6 +103,7 @@ import { createApnsRuntime } from './lib/notifications/apns-runtime.js';
 import { createNotificationTemplateRuntime } from './lib/notifications/template-runtime.js';
 import { createPermissionAutoAcceptRuntime } from './lib/permission-auto-accept/runtime.js';
 import { createMessageQueueRuntime } from './lib/message-queue/runtime.js';
+import { createUsageLimitRetryRuntime } from './lib/usage-limit-retry/runtime.js';
 import { createRoutingRuntime } from './lib/routing/runtime.js';
 import { createJevClient } from './lib/routing/jev.js';
 import { createSessionWorkRuntime } from './lib/session-work/runtime.js';
@@ -1059,6 +1060,15 @@ const messageQueueRuntime = createMessageQueueRuntime({
 });
 messageQueueRuntime.start();
 
+const usageLimitRetryRuntime = createUsageLimitRetryRuntime({
+  dataDir: OPENCHAMBER_DATA_DIR,
+  globalEventHub: globalMessageStreamHub,
+  buildOpenCodeUrl,
+  getOpenCodeAuthHeaders,
+  isSessionArchived: (id) => openChamberSessionService.archiveStore.isArchived(id),
+});
+void usageLimitRetryRuntime.start().catch((error) => console.warn('[usage-limit-retry] could not load schedules:', error.message));
+
 // Full-text search over this server's conversations (user messages and agent
 // replies). Opt-in: off by default, and off means idle. The index is derived
 // data in the data dir, fed from the same event stream; see lib/message-search.
@@ -1742,6 +1752,7 @@ const gracefulShutdownRuntime = createGracefulShutdownRuntime({
   contextObligatoryRuntime,
   messageQueueRuntime,
   messageSearchRuntime,
+  usageLimitRetryRuntime,
   sessionRuntime,
   getHealthCheckInterval: () => healthCheckInterval,
   clearHealthCheckInterval: (value) => clearInterval(value),
@@ -2357,6 +2368,7 @@ async function main(options = {}) {
     permissionAutoAcceptRuntime,
     messageQueueRuntime,
     routingRuntime,
+    usageLimitRetryRuntime,
   });
 
   // After bootstrap: the upgrade gate needs the real UI auth controller.

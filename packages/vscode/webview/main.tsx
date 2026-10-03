@@ -443,6 +443,10 @@ const handleLocalApiRequest = async (input: RequestInfo | URL, url: URL, init: R
     return unsupportedWebRouteResponse('Scheduled tasks');
   }
 
+  if (normalizedPathname.startsWith('/api/usage-limit-retry/')) {
+    return unsupportedWebRouteResponse('Usage-limit retry scheduling');
+  }
+
   // Project setup (worktree setup commands, project actions, draft starters)
   // lives in the user's OpenChamber config dir; the extension host owns the
   // file the way the OpenChamber server does elsewhere.

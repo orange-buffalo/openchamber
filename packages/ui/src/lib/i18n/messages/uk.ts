@@ -8,6 +8,7 @@ import { surfacePanelI18n } from './surface-panel.i18n';
 import { fileArtifactsI18n } from './file-artifacts.i18n';
 import { usageStatsI18n } from './usage-stats.i18n';
 import { webSearchI18n } from './websearch.i18n';
+import { usageLimitRetryI18n } from './usage-limit-retry.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
 import { providersI18n } from './providers.i18n';
 import { mcpGridI18n } from './mcp-grid.i18n';
@@ -65,6 +66,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileArtifactsI18n.uk,
   ...usageStatsI18n.uk,
   ...webSearchI18n.uk,
+  ...usageLimitRetryI18n.uk,
   ...isolatedSpacesI18n.uk,
   ...providersI18n.uk,
   ...mcpGridI18n.uk,
