@@ -20,6 +20,9 @@ button. Cancellation survives server restarts. New work, interruption, archive,
 revert, deletion, and a newer latest message prevent stale retries. Persisted
 schedule failures must remain failures, not an empty success. Retry status is
 polled only while scheduled, apart from three short initial reads per error.
+Reopening an error asks the server to recover a missing schedule from the latest
+authoritative failed message. Never recover a historical message, an active task,
+or an existing cancelled schedule. A missed reset that has passed retries promptly.
 
 Web, Electron, hosted mobile, and Capacitor use the server scheduler. VS Code
 shows the reset but explicitly does not support scheduling. Isolated-space

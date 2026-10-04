@@ -145,15 +145,50 @@ export function createUsageLimitRetryRuntime({ dataDir, globalEventHub, buildOpe
     if (!entry || entry.messageId !== messageId || entry.status !== 'scheduled') return;
     await replace(id, { ...entry, status: 'cancelled', retryAt: null });
   });
+  const recover = async (id, messageId) => {
+    if (!ready) throw new Error('Retry schedules unavailable');
+    if (entries.has(id) || pendingFailures.has(id) || stopped) return entries.get(id) ?? null;
+    const pending = {};
+    pendingFailures.set(id, pending);
+    try {
+      const api = client('');
+      const session = await api.session.get({ sessionID: id });
+      const active = await api.session.active();
+      const context = await api.session.context({ sessionID: id });
+      const last = context.at(-1);
+      const observedAt = last?.time?.completed ?? last?.time?.created;
+      const limit = parseUsageLimitError(last?.error?.response?.body, observedAt ?? now());
+      if (active[id] || isSessionArchived(id) || session.time?.archived || session.revert
+        || session.outcome === 'interrupted' || session.outcome === 'succeeded'
+        || last?.id !== messageId || !limit) return null;
+      await mutate(async () => {
+        if (stopped || entries.has(id) || pendingFailures.get(id) !== pending) return;
+        if (entries.size >= 1000) throw new Error('Retry schedule capacity reached');
+        // A missed failure is already due when its reset has passed. Do not
+        // make the user wait another half hour just because they reopened it.
+        const dueAt = limit.resetAt === null ? (observedAt ?? now()) + 30 * 60 * 1000 : limit.resetAt + 1000;
+        const retryAt = usageLimitRetryAt(limit.resetAt, now()) === null ? null : Math.max(now() + 1000, dueAt);
+        await replace(id, { sessionId: id, messageId, directory: session.location.directory,
+          resetAt: limit.resetAt, retryAt, status: retryAt === null ? 'skipped' : 'scheduled' });
+      });
+      return entries.get(id) ?? null;
+    } finally {
+      if (pendingFailures.get(id) === pending) pendingFailures.delete(id);
+    }
+  };
   return { start, processEvent, get: (id) => {
     if (!ready) throw new Error('Retry schedules unavailable');
     return entries.get(id) ?? null;
-  }, cancel,
+   }, cancel, recover,
     stop: async () => { stopped = true; unsubscribe?.(); for (const id of timers.keys()) clearTimer(id); await mutations.catch(() => {}); await writes.catch(() => {}); },
   };
 }
 
 export function registerUsageLimitRetryRoutes(app, runtime) {
+  app.post('/api/usage-limit-retry/:sessionId/:messageId', async (req, res) => {
+    try { res.json(await runtime.recover(req.params.sessionId, req.params.messageId)); }
+    catch { res.status(503).json({ error: 'Retry schedules unavailable' }); }
+  });
   app.get('/api/usage-limit-retry/:sessionId', (req, res) => {
     try { res.json(runtime.get(req.params.sessionId)); }
     catch { res.status(503).json({ error: 'Retry schedules unavailable' }); }

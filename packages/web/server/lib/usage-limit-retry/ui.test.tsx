@@ -25,6 +25,7 @@ test('renders the scheduled reset and cancels without an older read restoring th
     expect(container.textContent).toContain('Usage resets at');
     expect(container.textContent).toContain('Retry scheduled for');
     expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]).toMatchObject(['/api/usage-limit-retry/ses_test/msg_test', { method: 'POST' }]);
     let finishRead: (value: Response) => void = () => {};
     fetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { finishRead = resolve; }));
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });

@@ -46,7 +46,7 @@ describe('usage-limit scheduler', () => {
     directory = await fs.mkdtemp('/tmp/opencode/usage-limit-retry-');
     vi.useFakeTimers(); vi.setSystemTime(now);
     api = { session: {
-      get: vi.fn().mockResolvedValue({ time: {} }), active: vi.fn().mockResolvedValue({}),
+      get: vi.fn().mockResolvedValue({ time: {}, location: { directory: '/project' }, outcome: 'failed' }), active: vi.fn().mockResolvedValue({}),
       context: vi.fn().mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body() } }, time: { completed: now } }]),
       synthetic: vi.fn().mockResolvedValue({}),
     } };
@@ -54,6 +54,47 @@ describe('usage-limit scheduler', () => {
   });
   afterEach(async () => { await runtime.stop(); vi.useRealTimers(); await fs.rm(directory, { recursive: true, force: true }); });
   const drain = async () => { await vi.waitFor(() => expect(runtime.get('ses_test')).toBeNull()); };
+  it('recovers a missed failure and retries promptly after its reset', async () => {
+    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now - 300_000) / 1000 }) } }, time: { completed: now - 600_000 } }]);
+    const entry = await runtime.recover('ses_test', 'msg_failure');
+    expect(entry).toMatchObject({ directory: '/project', status: 'scheduled', retryAt: now + 1000 });
+    await vi.advanceTimersByTimeAsync(1000); await drain();
+    expect(api.session.synthetic).toHaveBeenCalledOnce();
+  });
+  it('does not recover historical errors, active work or interrupted tasks', async () => {
+    expect(await runtime.recover('ses_test', 'msg_old')).toBeNull();
+    api.session.active.mockResolvedValue({ ses_test: { type: 'running' } });
+    expect(await runtime.recover('ses_test', 'msg_failure')).toBeNull();
+    api.session.active.mockResolvedValue({});
+    api.session.get.mockResolvedValue({ time: {}, location: { directory: '/project' }, outcome: 'interrupted' });
+    expect(await runtime.recover('ses_test', 'msg_failure')).toBeNull();
+    expect(api.session.synthetic).not.toHaveBeenCalled();
+  });
+  it('does not resurrect cancellation or recover after a newer live event', async () => {
+    await runtime.processEvent(failure());
+    await runtime.cancel('ses_test', 'msg_failure');
+    expect((await runtime.recover('ses_test', 'msg_failure')).status).toBe('cancelled');
+    await runtime.processEvent({ payload: { type: 'session.execution.started', data: { sessionID: 'ses_test' } } });
+    let resolve;
+    api.session.get.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const recovering = runtime.recover('ses_test', 'msg_failure');
+    await runtime.processEvent({ payload: { type: 'session.execution.started', data: { sessionID: 'ses_test' } } });
+    resolve({ time: {}, location: { directory: '/project' }, outcome: 'failed' });
+    expect(await recovering).toBeNull();
+    expect(runtime.get('ses_test')).toBeNull();
+  });
+  it('keeps recovery read failures distinct from empty schedules', async () => {
+    api.session.context.mockRejectedValueOnce(new Error('offline'));
+    await expect(runtime.recover('ses_test', 'msg_failure')).rejects.toThrow('offline');
+    expect((await runtime.recover('ses_test', 'msg_failure')).status).toBe('scheduled');
+  });
+  it('recovers future resets but preserves the ten-hour cutoff', async () => {
+    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 60_000) / 1000 }) } }, time: { completed: now } }]);
+    expect((await runtime.recover('ses_test', 'msg_failure')).retryAt).toBe(now + 61_000);
+    await runtime.processEvent({ payload: { type: 'session.execution.started', data: { sessionID: 'ses_test' } } });
+    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 36_001_000) / 1000 }) } }, time: { completed: now } }]);
+    expect(await runtime.recover('ses_test', 'msg_failure')).toMatchObject({ status: 'skipped', retryAt: null });
+  });
   it('persists and retries a synthetic continuation once', async () => {
     await runtime.processEvent(failure({ resets_at: (now + 1000) / 1000 }));
     expect(runtime.get('ses_test').retryAt).toBe(now + 2000);

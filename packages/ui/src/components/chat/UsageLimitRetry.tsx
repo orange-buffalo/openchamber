@@ -33,10 +33,15 @@ export function UsageLimitRetry({ body, sessionId, messageId, observedAt }: {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     let attempts = 0;
+    let recover = true;
     const load = async () => {
       const startedRevision = revision.current;
       try {
-        const response = await runtimeFetch(`/api/usage-limit-retry/${encodeURIComponent(sessionId)}`, { signal: controller.signal });
+        const restoring = recover;
+        recover = false;
+        const response = await runtimeFetch(`/api/usage-limit-retry/${encodeURIComponent(sessionId)}${restoring ? `/${encodeURIComponent(messageId)}` : ''}`, {
+          method: restoring ? 'POST' : 'GET', signal: controller.signal,
+        });
         if (!response.ok) throw new Error('Retry status unavailable');
         const next = scheduleSchema.parse(await response.json());
         if (controller.signal.aborted || startedRevision !== revision.current) return;
