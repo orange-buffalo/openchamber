@@ -47,15 +47,14 @@ describe('usage-limit scheduler', () => {
     vi.useFakeTimers(); vi.setSystemTime(now);
     api = { session: {
       get: vi.fn().mockResolvedValue({ time: {}, location: { directory: '/project' }, outcome: 'failed' }), active: vi.fn().mockResolvedValue({}),
-      context: vi.fn().mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body() } }, time: { completed: now } }]),
       synthetic: vi.fn().mockResolvedValue({}),
-    } };
+    }, message: { list: vi.fn().mockResolvedValue({ data: [{ id: 'msg_failure', error: { response: { body: body() } }, time: { completed: now } }] }) } };
     runtime = make(); await runtime.start();
   });
   afterEach(async () => { await runtime.stop(); vi.useRealTimers(); await fs.rm(directory, { recursive: true, force: true }); });
   const drain = async () => { await vi.waitFor(() => expect(runtime.get('ses_test')).toBeNull()); };
   it('recovers a missed failure and retries promptly after its reset', async () => {
-    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now - 300_000) / 1000 }) } }, time: { completed: now - 600_000 } }]);
+    api.message.list.mockResolvedValue({ data: [{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now - 300_000) / 1000 }) } }, time: { completed: now - 600_000 } }] });
     const entry = await runtime.recover('ses_test', 'msg_failure');
     expect(entry).toMatchObject({ directory: '/project', status: 'scheduled', retryAt: now + 1000 });
     await vi.advanceTimersByTimeAsync(1000); await drain();
@@ -69,6 +68,21 @@ describe('usage-limit scheduler', () => {
     api.session.get.mockResolvedValue({ time: {}, location: { directory: '/project' }, outcome: 'interrupted' });
     expect(await runtime.recover('ses_test', 'msg_failure')).toBeNull();
     expect(api.session.synthetic).not.toHaveBeenCalled();
+  });
+  it.each([
+    { id: 'msg_success', type: 'assistant', time: { completed: now } },
+    { id: 'msg_user', type: 'user' },
+    null,
+  ])('checks only the latest message for recovery and dispatch: %j', async (last) => {
+    api.message.list.mockResolvedValue({ data: last ? [last] : [], cursor: { next: 'older-failures' } });
+    expect(await runtime.recover('ses_test', 'msg_failure')).toBeNull();
+    await runtime.processEvent(failure({ resets_at: (now + 1000) / 1000 }));
+    await vi.advanceTimersByTimeAsync(2000); await drain();
+    expect(api.session.synthetic).not.toHaveBeenCalled();
+    expect(api.message.list).toHaveBeenCalledTimes(2);
+    for (const [input] of api.message.list.mock.calls) {
+      expect(input).toEqual({ sessionID: 'ses_test', limit: 1, order: 'desc' });
+    }
   });
   it('does not resurrect cancellation or recover after a newer live event', async () => {
     await runtime.processEvent(failure());
@@ -84,15 +98,15 @@ describe('usage-limit scheduler', () => {
     expect(runtime.get('ses_test')).toBeNull();
   });
   it('keeps recovery read failures distinct from empty schedules', async () => {
-    api.session.context.mockRejectedValueOnce(new Error('offline'));
+    api.message.list.mockRejectedValueOnce(new Error('offline'));
     await expect(runtime.recover('ses_test', 'msg_failure')).rejects.toThrow('offline');
     expect((await runtime.recover('ses_test', 'msg_failure')).status).toBe('scheduled');
   });
   it('recovers future resets but preserves the ten-hour cutoff', async () => {
-    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 60_000) / 1000 }) } }, time: { completed: now } }]);
+    api.message.list.mockResolvedValue({ data: [{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 60_000) / 1000 }) } }, time: { completed: now } }] });
     expect((await runtime.recover('ses_test', 'msg_failure')).retryAt).toBe(now + 61_000);
     await runtime.processEvent({ payload: { type: 'session.execution.started', data: { sessionID: 'ses_test' } } });
-    api.session.context.mockResolvedValue([{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 36_001_000) / 1000 }) } }, time: { completed: now } }]);
+    api.message.list.mockResolvedValue({ data: [{ id: 'msg_failure', error: { response: { body: body({ resets_at: (now + 36_001_000) / 1000 }) } }, time: { completed: now } }] });
     expect(await runtime.recover('ses_test', 'msg_failure')).toMatchObject({ status: 'skipped', retryAt: null });
   });
   it('persists and retries a synthetic continuation once', async () => {
@@ -132,7 +146,7 @@ describe('usage-limit scheduler', () => {
     expect(runtime.get('ses_test')).toBeNull();
   });
   it('does not resume newer work after a missed event', async () => {
-    api.session.context.mockResolvedValue([{ id: 'msg_newer' }]);
+    api.message.list.mockResolvedValue({ data: [{ id: 'msg_newer' }] });
     await runtime.processEvent(failure({ resets_at: (now + 1000) / 1000 }));
     await vi.advanceTimersByTimeAsync(2000); await drain();
     expect(api.session.synthetic).not.toHaveBeenCalled();

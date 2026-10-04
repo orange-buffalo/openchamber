@@ -23,6 +23,8 @@ polled only while scheduled, apart from three short initial reads per error.
 Reopening an error asks the server to recover a missing schedule from the latest
 authoritative failed message. Never recover a historical message, an active task,
 or an existing cancelled schedule. A missed reset that has passed retries promptly.
+Recovery and dispatch request only one latest message, without filtering by type.
+Never scan earlier failures or skip a newer user message to find an old error.
 
 Web, Electron, hosted mobile, and Capacitor use the server scheduler. VS Code
 shows the reset but explicitly does not support scheduling. Isolated-space

@@ -78,8 +78,8 @@ export function createUsageLimitRetryRuntime({ dataDir, globalEventHub, buildOpe
     const api = client(entry.directory);
     const session = await api.session.get({ sessionID: entry.sessionId });
     const active = await api.session.active();
-    const context = await api.session.context({ sessionID: entry.sessionId });
-    const last = context.at(-1);
+    const latest = await api.message.list({ sessionID: entry.sessionId, limit: 1, order: 'desc' });
+    const last = latest.data[0];
     if (stopped || entries.get(entry.sessionId) !== entry) return;
     if (active[entry.sessionId] || isSessionArchived(entry.sessionId) || session.time?.archived || session.revert
       || last?.id !== entry.messageId || !parseUsageLimitError(last.error?.response?.body, last.time?.completed ?? now())) {
@@ -154,8 +154,8 @@ export function createUsageLimitRetryRuntime({ dataDir, globalEventHub, buildOpe
       const api = client('');
       const session = await api.session.get({ sessionID: id });
       const active = await api.session.active();
-      const context = await api.session.context({ sessionID: id });
-      const last = context.at(-1);
+      const latest = await api.message.list({ sessionID: id, limit: 1, order: 'desc' });
+      const last = latest.data[0];
       const observedAt = last?.time?.completed ?? last?.time?.created;
       const limit = parseUsageLimitError(last?.error?.response?.body, observedAt ?? now());
       if (active[id] || isSessionArchived(id) || session.time?.archived || session.revert
