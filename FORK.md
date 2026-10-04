@@ -7,6 +7,12 @@ re-applying the intent rather than by reading the diff and guessing.
 
 Update this file in the same commit as the change it describes.
 
+## Stable upstream sync
+
+Integrated upstream v2.1.1. Preserve the fork's removed self-update and usage
+reporting flows, automatic usage-limit retry, and release artifact workflows.
+New upstream tests for the removed update store are intentionally excluded.
+
 ## Usage-limit automatic retry
 
 Continue a task after a provider usage-limit error without resending its original
