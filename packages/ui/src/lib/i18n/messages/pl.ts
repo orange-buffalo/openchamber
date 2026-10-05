@@ -2105,7 +2105,7 @@ export const dict: Record<I18nKey, string> = {
   'diffView.state.notGitRepository': 'To nie jest repozytorium Git. Użyj karty Git, aby zainicjować lub zmienić katalog.',
   'diffView.state.selectSessionDirectory': 'Wybierz katalog sesji, aby zobaczyć diffy',
   'diffView.summary.changedFilesPlural': 'Zmieniono {count} plików',
-  "diffView.scope.changed": "Zmienione",
+  "diffView.scope.changed": "Niezacommitowane",
   "diffView.scope.staged": "Staged",
   "diffView.scope.lastTurn": "Ostatnia tura",
   "diffView.scope.branch": "Gałąź",

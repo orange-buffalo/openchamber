@@ -552,6 +552,25 @@ describe('gitApiHttp branch comparisons', () => {
     }
   });
 
+  test('sends an explicit uncommitted comparison without changing staged diff requests', async () => {
+    installWindowMock();
+    const urls: URL[] = [];
+    globalThis.fetch = Object.assign(async (input: RequestInfo | URL) => {
+      urls.push(new URL(String(input), 'http://localhost'));
+      return Response.json({ diff: 'patch' });
+    }, previousFetch);
+    try {
+      await getGitDiff('/repo', { path: 'file.ts', uncommitted: true, contextLines: 20 });
+      await getGitDiff('/repo', { path: 'file.ts', staged: true });
+      expect(urls[0].searchParams.get('uncommitted')).toBe('true');
+      expect(urls[0].searchParams.get('context')).toBe('20');
+      expect(urls[1].searchParams.get('uncommitted')).toBeNull();
+      expect(urls[1].searchParams.get('staged')).toBe('true');
+    } finally {
+      restoreMocks();
+    }
+  });
+
   test('reports a status path that no longer resolves as unavailable, not as a failed request', async () => {
     installWindowMock();
     try {

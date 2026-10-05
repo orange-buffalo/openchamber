@@ -271,6 +271,8 @@ export interface GitPathDiffResponse extends GitDiffResponse {
 
 export interface GetGitDiffOptions {
   path: string;
+  /** Compare HEAD with current files, including staged and unstaged work. */
+  uncommitted?: boolean;
   staged?: boolean;
   contextLines?: number;
 }

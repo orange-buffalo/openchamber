@@ -3202,12 +3202,12 @@ const getNoIndexDiff = async (repoRoot, repoPath, contextLines) => {
   throw new Error(result.stderr || result.message || 'Failed to get untracked Git diff');
 };
 
-export async function getDiff(directory, { path: filePath, staged = false, contextLines = 3 } = {}) {
+export async function getDiff(directory, { path: filePath, staged = false, uncommitted = false, contextLines = 3 } = {}) {
   const context = await createRepositoryGitContext(directory);
   const fileContext = filePath
     ? await resolveGitFileContext(context.directoryPath, context.directoryGit, filePath, context.repoRoot)
     : null;
-  return readDiff(context, fileContext, { staged, contextLines });
+  return readDiff(context, fileContext, { staged, uncommitted, contextLines });
 }
 
 /**
@@ -3215,15 +3215,15 @@ export async function getDiff(directory, { path: filePath, staged = false, conte
  * empty when only untracked files changed inside it, so callers need the state
  * to show anything truthful.
  */
-export async function getPathDiff(directory, { path: filePath, staged = false, contextLines = 3 } = {}) {
+export async function getPathDiff(directory, { path: filePath, staged = false, uncommitted = false, contextLines = 3 } = {}) {
   const context = await createRepositoryGitContext(directory);
   const fileContext = await resolveGitFileContext(context.directoryPath, context.directoryGit, filePath, context.repoRoot);
-  const diff = await readDiff(context, fileContext, { staged, contextLines });
+  const diff = await readDiff(context, fileContext, { staged, uncommitted, contextLines });
   if (!fileContext.isSubmodule) return { diff, submodule: null };
   return { diff, submodule: await readSubmoduleState(context.repoRoot, fileContext) };
 }
 
-async function readDiff({ repoRoot, git }, fileContext, { staged, contextLines }) {
+async function readDiff({ repoRoot, git }, fileContext, { staged, uncommitted = false, contextLines }) {
   try {
     const args = ['diff', '--no-color', '--full-index'];
 
@@ -3233,6 +3233,34 @@ async function readDiff({ repoRoot, git }, fileContext, { staged, contextLines }
 
     if (staged) {
       args.push('--cached');
+    } else if (uncommitted) {
+      const head = await runGitCommand(repoRoot, ['rev-parse', '--verify', '--quiet', 'HEAD']);
+      if (head.success) {
+        const paths = fileContext ? [fileContext.repoPath] : [];
+        return withUntrackedPaths({ repoRoot, git }, paths, (comparisonGit) =>
+          comparisonGit.raw([...args, 'HEAD', '--', ...paths]));
+      } else {
+        if (head.exitCode !== 1) throw new Error(head.stderr || head.message || 'Failed to read HEAD');
+        // An unborn repository has no committed contents to compare against.
+        if (!fileContext) {
+          const paths = (await git.raw(['ls-files', '--cached', '--others', '--exclude-standard', '-z']))
+            .split('\0').filter(Boolean);
+          const diffs = [];
+          for (const repoPath of new Set(paths)) {
+            const target = await resolveGitFileContext(repoRoot, git, repoPath, repoRoot);
+            if (await fsp.lstat(target.absolutePath).catch((error) => {
+              if (error.code === 'ENOENT') return null;
+              throw error;
+            })) diffs.push(await readAddedPathDiff(repoRoot, target, contextLines));
+          }
+          return diffs.join('\n');
+        }
+        if (!await fsp.lstat(fileContext.absolutePath).catch((error) => {
+          if (error.code === 'ENOENT') return null;
+          throw error;
+        })) return '';
+        return readAddedPathDiff(repoRoot, fileContext, contextLines);
+      }
     }
 
     if (fileContext) {
@@ -3256,26 +3284,27 @@ async function readDiff({ repoRoot, git }, fileContext, { staged, contextLines }
       await git.raw(['ls-files', '--error-unmatch', '--', fileContext.repoPath]);
       return diff;
     } catch {
-      if (fileContext.isSymbolicLink) {
-        const target = await fsp.readlink(fileContext.absolutePath);
-        return [
-          `diff --git a/${fileContext.repoPath} b/${fileContext.repoPath}`,
-          'new file mode 120000',
-          '--- /dev/null',
-          `+++ b/${fileContext.repoPath}`,
-          '@@ -0,0 +1 @@',
-          `+${target}`,
-          '\\ No newline at end of file',
-          '',
-        ].join('\n');
-      }
-
-      return await getNoIndexDiff(repoRoot, fileContext.repoPath, contextLines);
+      return await readAddedPathDiff(repoRoot, fileContext, contextLines);
     }
   } catch (error) {
     console.error('Failed to get Git diff:', error);
     throw error;
   }
+}
+
+async function readAddedPathDiff(repoRoot, fileContext, contextLines) {
+  if (!fileContext.isSymbolicLink) return getNoIndexDiff(repoRoot, fileContext.repoPath, contextLines);
+  const target = await fsp.readlink(fileContext.absolutePath);
+  return [
+    `diff --git a/${fileContext.repoPath} b/${fileContext.repoPath}`,
+    'new file mode 120000',
+    '--- /dev/null',
+    `+++ b/${fileContext.repoPath}`,
+    '@@ -0,0 +1 @@',
+    `+${target}`,
+    '\\ No newline at end of file',
+    '',
+  ].join('\n');
 }
 
 /**
@@ -3382,6 +3411,10 @@ async function runWorkingTreeRangeDiff(context, baseRef, headRef, args, paths = 
     }
     return diff;
   };
+  return withUntrackedPaths(context, paths, readDiff);
+}
+
+async function withUntrackedPaths({ repoRoot, git }, paths, readDiff) {
   const untracked = await git.raw(['ls-files', '--others', '--exclude-standard', '-z', '--', ...paths]);
   if (!untracked) return readDiff(git);
 

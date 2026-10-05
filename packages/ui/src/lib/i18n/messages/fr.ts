@@ -1591,7 +1591,7 @@ export const dict = {
   'diffView.state.largeDiffDescription': 'Le rendu peut être lent. Vous pouvez tout de même afficher le diff avec le bouton ci-dessous.',
   'diffView.summary.changedFilesSingle': 'Le fichier {count} a été modifié',
   'diffView.summary.changedFilesPlural': 'Fichiers {count} modifiés',
-  "diffView.scope.changed": "Modifiés",
+  "diffView.scope.changed": "Non commités",
   "diffView.scope.staged": "Staged",
   "diffView.scope.lastTurn": "Dernier tour",
   "diffView.scope.branch": "Branche",

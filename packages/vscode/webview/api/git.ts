@@ -395,6 +395,7 @@ export const createVSCodeGitAPI = (): GitAPI => ({
       directory,
       path: options.path,
       staged: options.staged,
+      uncommitted: options.uncommitted,
       contextLines: options.contextLines,
     }));
     if (result.kind === 'unavailable') throw new GitPathUnavailableError(result.message, result.reason);

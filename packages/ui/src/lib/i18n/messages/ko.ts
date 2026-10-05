@@ -1846,7 +1846,7 @@ export const dict: Record<I18nKey, string> = {
   'diffView.state.largeDiffDescription': '렌더링이 느릴 수 있습니다. 아래 버튼으로 diff를 계속 볼 수 있습니다.',
   'diffView.summary.changedFilesSingle': '파일 {count}개 변경됨',
   'diffView.summary.changedFilesPlural': '파일 {count}개 변경됨',
-  "diffView.scope.changed": "Changed",
+  "diffView.scope.changed": "커밋되지 않음",
   "diffView.scope.staged": "Staged",
   "diffView.scope.lastTurn": "마지막 턴",
   "diffView.scope.branch": "브랜치",

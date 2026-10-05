@@ -53,6 +53,23 @@ describe('useUIStore preview file tabs', () => {
   });
 });
 
+describe('Git tree defaults', () => {
+  test('defaults to tree views and still allows an explicit list preference', () => {
+    expect(useUIStore.getInitialState().diffFileListMode).toBe('tree');
+    expect(useUIStore.getInitialState().gitChangesViewMode).toBe('tree');
+    const previous = useUIStore.getState().diffFileListMode;
+    useUIStore.getState().setDiffFileListMode('flat');
+    expect(useUIStore.getState().diffFileListMode).toBe('flat');
+    useUIStore.getState().setDiffFileListMode(previous);
+  });
+
+  test('opens a diff surface without a target file, even for a clean repository', () => {
+    useUIStore.getState().openContextSurface('/repo', 'diff');
+    expect(getContextPanelTabs('/repo').map((tab) => tab.mode)).toEqual(['diff']);
+    expect(useUIStore.getState().contextPanelByDirectory['/repo'].isOpen).toBe(true);
+  });
+});
+
 describe('useUIStore context panel tabs', () => {
   test('opens a plugin surface tab', () => {
     useUIStore.getState().openContextPanelTab('/repo', {

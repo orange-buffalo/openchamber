@@ -1836,7 +1836,7 @@ export const dict = {
   'diffView.state.largeDiffDescription': 'Weergave kan traag zijn. U kunt de diff alsnog bekijken door hieronder te klikken.',
   'diffView.summary.changedFilesSingle': '{count} bestand gewijzigd',
   'diffView.summary.changedFilesPlural': '{count} bestanden gewijzigd',
-  'diffView.scope.changed': 'Gewijzigd',
+  'diffView.scope.changed': 'Niet gecommit',
   'diffView.scope.staged': 'Gestaged',
   'diffView.scope.lastTurn': 'Laatste beurt',
   'diffView.scope.branch': 'Branch',

@@ -1798,7 +1798,7 @@ export const dict: Record<I18nKey, string> = {
   "diffView.state.largeDiffDescription": "Рендеринг може бути повільним. Ви все одно можете переглянути diff кнопкою нижче.",
   "diffView.summary.changedFilesSingle": "Змінено файл: {count}",
   "diffView.summary.changedFilesPlural": "Змінено файлів: {count}",
-  "diffView.scope.changed": "Змінені",
+  "diffView.scope.changed": "Незакомічені",
   "diffView.scope.staged": "Індексовані",
   "diffView.scope.lastTurn": "Останній хід",
   "diffView.scope.branch": "Гілка",

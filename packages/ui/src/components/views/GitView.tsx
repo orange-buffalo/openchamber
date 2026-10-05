@@ -2470,6 +2470,10 @@ export const GitView: React.FC<GitViewProps> = ({ isActive }) => {
         onIdentityMenuOpen={() => void refreshIdentityAccounts(sourceControl, profiles.map((profile) => profile.account))}
             isWorktreeMode={!!worktreeMetadata}
             onOpenHistory={() => setGitLogDialogMode('history')}
+            onOpenChanges={() => {
+              useUIStore.getState().setDiffFileListMode('tree');
+              if (currentDirectory) openContextSurface(currentDirectory, 'diff');
+            }}
             onOpenGraph={() => setGitLogDialogMode('graph')}
             onOpenStashes={openStashes}
             onOpenUpdateBranch={canShowBranchWorkflows ? () => setIsUpdateBranchDialogOpen(true) : undefined}

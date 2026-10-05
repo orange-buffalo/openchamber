@@ -1448,10 +1448,10 @@ export const useUIStore = create<UIStore>()(
         diffLayoutPreference: 'inline',
         diffFileLayout: {},
         diffWrapLines: false,
-        diffFileListMode: 'flat',
+        diffFileListMode: 'tree',
         diffFileTreeWidth: 240,
         walkthroughTocWidth: 224,
-        gitChangesViewMode: 'flat',
+        gitChangesViewMode: 'tree',
         toolJsonViewMode: 'summary',
         linearIssueListStatus: 'all',
         linearIssueListAssignee: 'any',
@@ -3297,7 +3297,7 @@ export const useUIStore = create<UIStore>()(
 
           if (version < 8) {
             if (state.gitChangesViewMode !== 'flat' && state.gitChangesViewMode !== 'tree') {
-              state.gitChangesViewMode = 'flat';
+              state.gitChangesViewMode = 'tree';
             }
           }
 

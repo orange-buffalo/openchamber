@@ -2457,13 +2457,57 @@ export async function getGitDiff(
   directory: string, 
   filePath: string, 
   staged = false,
-  contextLines?: number
+  contextLines?: number,
+  uncommitted = false
 ): Promise<{ kind: 'diff'; diff: string; submodule: GitSubmoduleState | null } | GitPathUnavailable> {
   const target = await resolveGitPathTarget(execGit, directory, filePath);
   if (target.kind === 'unavailable') return target;
 
   const args = ['diff'];
   if (staged) args.push('--cached');
+  else if (uncommitted) {
+    const head = await execGit(['rev-parse', '--verify', '--quiet', 'HEAD'], directory);
+    if (head.exitCode === 0) {
+      args.push('HEAD');
+      const untracked = await execGit(['ls-files', '--others', '--exclude-standard', '-z', '--', target.repoPath], directory);
+      if (untracked.exitCode !== 0) throw new Error(untracked.stderr.trim() || 'Failed to read untracked paths');
+      if (untracked.stdout) {
+        // Include additions and recreated staged deletions without changing the real index.
+        const temporaryDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'openchamber-uncommitted-'));
+        try {
+          const index = await execGit(['rev-parse', '--git-path', 'index'], directory);
+          if (index.exitCode !== 0) throw new Error(index.stderr.trim() || 'Failed to locate Git index');
+          const temporaryIndex = path.join(temporaryDirectory, 'index');
+          await fs.promises.copyFile(path.resolve(directory, index.stdout.trim()), temporaryIndex);
+          const env = { ...process.env, GIT_INDEX_FILE: temporaryIndex, GIT_LITERAL_PATHSPECS: '1' };
+          const added = await execGit(['add', '--intent-to-add', '--', target.repoPath], directory, env);
+          if (added.exitCode !== 0) throw new Error(added.stderr.trim() || 'Failed to compare untracked path');
+          const result = await execGit([...args, ...(typeof contextLines === 'number' ? [`-U${contextLines}`] : []), '--', target.repoPath], directory, env);
+          if (result.exitCode !== 0) throw new Error(result.stderr.trim() || 'Failed to get Git diff');
+          return { kind: 'diff', diff: result.stdout, submodule: null };
+        } finally {
+          await fs.promises.rm(temporaryDirectory, { recursive: true, force: true });
+        }
+      }
+    }
+    else {
+      if (head.exitCode !== 1) throw new Error(head.stderr.trim() || 'Failed to read HEAD');
+      const entry = await fs.promises.lstat(target.absolutePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+      });
+      if (!entry) return { kind: 'diff', diff: '', submodule: null };
+      if (entry.isSymbolicLink()) {
+        const link = await fs.promises.readlink(target.absolutePath);
+        return { kind: 'diff', diff: `diff --git a/${target.repoPath} b/${target.repoPath}\nnew file mode 120000\n--- /dev/null\n+++ b/${target.repoPath}\n@@ -0,0 +1 @@\n+${link}\n\\ No newline at end of file\n`, submodule: null };
+      }
+      if (typeof contextLines === 'number') args.push(`-U${contextLines}`);
+      args.push('--no-index', '--', '/dev/null', target.repoPath);
+      const result = await execGit(args, directory);
+      if (result.exitCode > 1) throw new Error(result.stderr.trim() || 'Failed to get Git diff');
+      return { kind: 'diff', diff: result.stdout, submodule: null };
+    }
+  }
   if (typeof contextLines === 'number') args.push(`-U${contextLines}`);
   args.push('--', target.repoPath);
 

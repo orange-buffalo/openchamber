@@ -1812,7 +1812,7 @@ export const dict: Record<I18nKey, string> = {
   'diffView.state.largeDiffDescription': '渲染可能較慢。你仍可點擊下方按鈕查看差異。',
   'diffView.summary.changedFilesSingle': '{count} 個檔案已變更',
   'diffView.summary.changedFilesPlural': '{count} 個檔案已變更',
-  "diffView.scope.changed": "已變更",
+  "diffView.scope.changed": "未提交",
   "diffView.scope.staged": "已暫存",
   "diffView.scope.lastTurn": "上一輪",
   "diffView.scope.branch": "分支",

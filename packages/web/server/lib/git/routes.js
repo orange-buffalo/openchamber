@@ -732,6 +732,7 @@ export function registerGitRoutes(app, {
       const { diff, submodule } = await getPathDiff(directory, {
         path,
         staged,
+        uncommitted: req.query.uncommitted === 'true',
         contextLines: Number.isFinite(context) ? context : 3,
       });
 

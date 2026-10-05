@@ -950,7 +950,7 @@ export async function getGitCommitSummaries(
 }
 
 export async function getGitDiff(directory: string, options: GetGitDiffOptions): Promise<GitPathDiffResponse> {
-  const { path, staged, contextLines } = options;
+  const { path, staged, uncommitted, contextLines } = options;
   if (!path) {
     throw new Error('path is required to fetch git diff');
   }
@@ -959,6 +959,7 @@ export async function getGitDiff(directory: string, options: GetGitDiffOptions):
     buildUrl(`${API_BASE}/diff`, directory, {
       path,
       staged: staged ? 'true' : undefined,
+      uncommitted: uncommitted ? 'true' : undefined,
       context: contextLines,
     })
   );

@@ -13,6 +13,23 @@ Integrated upstream v2.1.1. Preserve the fork's removed self-update and usage
 reporting flows, automatic usage-limit retry, and release artifact workflows.
 New upstream tests for the removed update store are intentionally excluded.
 
+## Git tree and uncommitted comparison
+
+Keep a tree entry point in the Git header even when the working tree is clean,
+so commit comparisons remain reachable. New installations default to tree views;
+explicitly saved list preferences remain supported. The header tree button always
+opens tree mode.
+
+The Uncommitted scope includes staged, unstaged, and untracked files. Compare
+HEAD with current files regardless of which file opened the panel or whether
+context is expanded. Staged remains a separate index comparison. Combined diffs
+do not offer hunk mutations, whose patches require an index-relative comparison.
+Web, desktop, and mobile use the server; VS Code uses its Git bridge.
+
+The upstream option-like-remote test explicitly creates its remote HEAD fixture,
+matching the local symbolic-ref default-branch reader. Its duplicate `commit`
+import is removed so the test module remains valid JavaScript.
+
 ## Usage-limit automatic retry
 
 Continue a task after a provider usage-limit error without resending its original

@@ -302,8 +302,12 @@ test('diff answers from the extension host become the shared contract, and unava
     const git = createVSCodeGitAPI();
     const submodule = { headCommit: 'a'.repeat(40), indexCommit: 'a'.repeat(40), worktreeCommit: 'b'.repeat(40), hasTrackedChanges: false, hasUntrackedFiles: false, hasConflict: false };
 
-    const diff = git.getGitDiff('/repo', { path: 'sub' });
-    respond(await nextMessage(), { kind: 'diff', diff: 'patch', submodule });
+    const diff = git.getGitDiff('/repo', { path: 'sub', uncommitted: true });
+    const diffMessage = await nextMessage();
+    assert.deepEqual(diffMessage.payload, {
+      directory: '/repo', path: 'sub', staged: undefined, uncommitted: true, contextLines: undefined,
+    });
+    respond(diffMessage, { kind: 'diff', diff: 'patch', submodule });
     assert.deepEqual(await diff, { diff: 'patch', submodule });
 
     const fileDiff = git.getGitFileDiff('/repo', { path: 'file.ts' });

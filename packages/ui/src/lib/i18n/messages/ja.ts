@@ -1840,7 +1840,7 @@ export const dict: Record<I18nKey, string> = {
   'diffView.state.largeDiffDescription': 'レンダリングが遅くなる可能性があります。以下をクリックして差分を表示できます。',
   'diffView.summary.changedFilesSingle': '{count}ファイルが変更されました',
   'diffView.summary.changedFilesPlural': '{count}ファイルが変更されました',
-  'diffView.scope.changed': '変更済み',
+  'diffView.scope.changed': '未コミット',
   'diffView.scope.staged': 'ステージ済み',
   'diffView.scope.lastTurn': '最後のターン',
   'diffView.scope.branch': 'ブランチ',

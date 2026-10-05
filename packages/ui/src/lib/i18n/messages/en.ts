@@ -1844,7 +1844,7 @@ export const dict = {
   'diffView.state.largeDiffDescription': 'Rendering may be slow. You can still view the diff by clicking below.',
   'diffView.summary.changedFilesSingle': '{count} file changed',
   'diffView.summary.changedFilesPlural': '{count} files changed',
-  'diffView.scope.changed': 'Changed',
+  'diffView.scope.changed': 'Uncommitted',
   'diffView.scope.staged': 'Staged',
   'diffView.scope.lastTurn': 'Last turn',
   'diffView.scope.branch': 'Branch',

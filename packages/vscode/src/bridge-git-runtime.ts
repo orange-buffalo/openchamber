@@ -240,16 +240,17 @@ export async function handleStandardGitBridgeMessage(message: BridgeMessageInput
     }
 
     case 'api:git/diff': {
-      const { directory, path: filePath, staged, contextLines } = (payload || {}) as {
+      const { directory, path: filePath, staged, uncommitted, contextLines } = (payload || {}) as {
         directory?: string;
         path?: string;
         staged?: boolean;
+        uncommitted?: boolean;
         contextLines?: number;
       };
       if (!directory || !filePath) {
         return { id, type, success: false, error: 'Directory and path are required' };
       }
-      const result = await gitService.getGitDiff(directory, filePath, staged, contextLines);
+      const result = await gitService.getGitDiff(directory, filePath, staged, contextLines, uncommitted === true);
       return { id, type, success: true, data: result };
     }
 

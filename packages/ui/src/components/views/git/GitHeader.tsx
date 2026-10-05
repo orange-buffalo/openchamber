@@ -65,6 +65,7 @@ interface GitHeaderProps {
   onIdentityMenuOpen?: () => void;
   isWorktreeMode: boolean;
   onOpenHistory?: () => void;
+  onOpenChanges?: () => void;
   onOpenGraph?: () => void;
   onOpenStashes?: () => void;
   onOpenUpdateBranch?: () => void;
@@ -340,6 +341,7 @@ export const GitHeader: React.FC<GitHeaderProps> = ({
   onIdentityMenuOpen,
   isWorktreeMode,
   onOpenHistory,
+  onOpenChanges,
   onOpenGraph,
   onOpenStashes,
   onOpenUpdateBranch,
@@ -363,6 +365,12 @@ export const GitHeader: React.FC<GitHeaderProps> = ({
 
   const managementButtons = (
     <div className="flex items-center gap-1 shrink-0">
+      {onOpenChanges && (
+        <Button variant="ghost" size="icon" onClick={onOpenChanges}
+          aria-label={t('diffView.fileTree.showAsTree')} title={t('diffView.fileTree.showAsTree')}>
+          <Icon name="node-tree" className="size-4" />
+        </Button>
+      )}
       {onOpenHistory || onOpenGraph || onOpenStashes || onOpenUpdateBranch ? (
         <DropdownMenu>
           <Tooltip>

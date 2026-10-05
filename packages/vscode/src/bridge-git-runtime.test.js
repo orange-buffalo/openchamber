@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 const gitService = {
+  getGitDiff: mock(),
   stageGitFiles: mock(),
   unstageGitFiles: mock(),
   checkoutCommit: mock(),
@@ -21,6 +22,7 @@ const { handleStandardGitBridgeMessage } = await import('./bridge-git-runtime');
 
 describe('bridge git runtime index mutations', () => {
   beforeEach(() => {
+    gitService.getGitDiff.mockReset();
     gitService.stageGitFiles.mockReset();
     gitService.unstageGitFiles.mockReset();
     gitService.checkoutCommit.mockReset();
@@ -31,6 +33,16 @@ describe('bridge git runtime index mutations', () => {
     gitService.getWorktreeBootstrapStatus.mockReset();
     gitService.removeWorktree.mockReset();
     fetchMock.mockClear();
+  });
+
+  it('forwards uncommitted comparisons to the Git service', async () => {
+    gitService.getGitDiff.mockResolvedValue({ kind: 'diff', diff: 'patch', submodule: null });
+    const response = await handleStandardGitBridgeMessage({
+      id: 'diff', type: 'api:git/diff',
+      payload: { directory: '/repo', path: 'file.ts', uncommitted: true, contextLines: 20 },
+    });
+    expect(response.success).toBe(true);
+    expect(gitService.getGitDiff).toHaveBeenCalledWith('/repo', 'file.ts', undefined, 20, true);
   });
 
   it('accepts legacy stage path payloads', async () => {

@@ -55,7 +55,6 @@ import {
   revertFile,
   getUntrackedDiffs,
   getFileDiff,
-  commit,
   hasLocalIdentity,
   validateWorktreeCreate,
   parseBranchCreationSource,
@@ -673,6 +672,54 @@ describe('applyHunk', () => {
 
     const staged = (await git.raw(['show', `:${filePath}`])).replace(/\r\n/g, '\n');
     expect(staged).toBe(makeFile('TOP', 'line20'));
+  });
+});
+
+describe.runIf(canRunGit())('uncommitted diffs', () => {
+  it('compares HEAD with current contents, independently of staging and context size', async () => {
+    const { tmpDir, git } = await createTempRepo();
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'committed\n');
+    await git.add('.');
+    await git.commit('initial');
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'staged\n');
+    await git.add('file.txt');
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'current\n');
+    const indexBefore = runGit(tmpDir, ['ls-files', '--stage']);
+    for (const contextLines of [3, 10000]) {
+      const { diff } = await getPathDiff(tmpDir, { path: 'file.txt', uncommitted: true, contextLines });
+      expect(diff).toContain('-committed\n+current');
+      expect(diff).not.toContain('staged');
+    }
+    expect(await getDiff(tmpDir, { path: 'file.txt', staged: true })).toContain('-committed\n+staged');
+    expect(await getDiff(tmpDir, { path: 'file.txt' })).toContain('-staged\n+current');
+    expect(runGit(tmpDir, ['ls-files', '--stage'])).toBe(indexBefore);
+  });
+
+  it('includes additions and recreated staged deletions without mutating the index', async () => {
+    const { tmpDir, git } = await createTempRepo();
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'committed\n');
+    await git.add('.');
+    await git.commit('initial');
+    await git.raw(['rm', 'file.txt']);
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'recreated\n');
+    fs.writeFileSync(path.join(tmpDir, 'new.txt'), 'new\n');
+    const indexBefore = runGit(tmpDir, ['ls-files', '--stage']);
+    expect((await getPathDiff(tmpDir, { path: 'file.txt', uncommitted: true })).diff).toContain('-committed\n+recreated');
+    expect((await getPathDiff(tmpDir, { path: 'new.txt', uncommitted: true })).diff).toContain('+new');
+    expect(runGit(tmpDir, ['ls-files', '--stage'])).toBe(indexBefore);
+  });
+
+  it('uses current contents for staged and untracked files before the first commit', async () => {
+    const { tmpDir, git } = await createTempRepo();
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'staged\n');
+    await git.add('file.txt');
+    fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'current\n');
+    fs.writeFileSync(path.join(tmpDir, 'new.txt'), 'new\n');
+    expect((await getPathDiff(tmpDir, { path: 'file.txt', uncommitted: true })).diff).toContain('+current');
+    expect((await getPathDiff(tmpDir, { path: 'new.txt', uncommitted: true })).diff).toContain('+new');
+    const allFiles = await getDiff(tmpDir, { uncommitted: true });
+    expect(allFiles).toContain('+current');
+    expect(allFiles).toContain('+new');
   });
 });
 
@@ -2685,6 +2732,7 @@ describe('git remote arguments with option-like names', () => {
 
     const { remote, repository } = createRepositoryWithRemote();
     addOptionLikeRemote(repository, remote);
+    runGit(repository, ['symbolic-ref', `refs/remotes/${OPTION_LIKE_REMOTE}/HEAD`, `refs/remotes/${OPTION_LIKE_REMOTE}/react`]);
     const head = runGit(repository, ['rev-parse', 'HEAD']).trim();
     runGit(repository, ['update-ref', `refs/remotes/${OPTION_LIKE_REMOTE}/gone`, head]);
 

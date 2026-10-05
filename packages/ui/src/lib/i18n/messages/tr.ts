@@ -1722,7 +1722,7 @@ export const dict = {
   'diffView.state.largeDiffDescription': 'Görüntüleme yavaş olabilir. Aşağıya tıklayarak diff\'i yine de görüntüleyebilirsiniz.',
   'diffView.summary.changedFilesSingle': '{count} dosya değişti',
   'diffView.summary.changedFilesPlural': '{count} dosya değişti',
-  'diffView.scope.changed': 'Değişen',
+  'diffView.scope.changed': 'Commit edilmemiş',
   'diffView.scope.staged': 'Staged',
   'diffView.scope.lastTurn': 'Son tur',
   'diffView.scope.selectorAria': 'Değişiklik modunu seç',
