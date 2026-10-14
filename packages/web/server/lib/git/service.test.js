@@ -5465,6 +5465,32 @@ describe('parseBranchCreationSource', () => {
 });
 
 describe.runIf(canRunGit())('getRangeFiles', () => {
+  it('compares branch commits from the merge base without staged, unstaged, or untracked work', async () => {
+    const { repository } = createRepositoryWithRemote();
+    fs.writeFileSync(path.join(repository, 'branch.txt'), 'committed branch work\n');
+    runGit(repository, ['add', 'branch.txt']);
+    runGit(repository, ['commit', '-m', 'branch work']);
+    // The default branch advances independently. Its work is not a branch change.
+    runGit(repository, ['checkout', '-b', 'default-tip', 'origin/react']);
+    fs.writeFileSync(path.join(repository, 'default.txt'), 'default branch work\n');
+    runGit(repository, ['add', 'default.txt']);
+    runGit(repository, ['commit', '-m', 'default work']);
+    runGit(repository, ['update-ref', 'refs/remotes/origin/react', 'HEAD']);
+    runGit(repository, ['checkout', 'next']);
+    fs.writeFileSync(path.join(repository, 'staged.txt'), 'staged work\n');
+    runGit(repository, ['add', 'staged.txt']);
+    fs.writeFileSync(path.join(repository, 'untracked.txt'), 'untracked work\n');
+    fs.writeFileSync(path.join(repository, 'branch.txt'), 'uncommitted overwrite\n');
+
+    const options = { base: 'origin/react', head: 'next' };
+    expect(await getRangeFiles(repository, options)).toEqual([{ path: 'branch.txt', status: 'A' }]);
+    for (const contextLines of [3, 10000]) {
+      const result = await getRangeDiff(repository, { ...options, path: 'branch.txt', contextLines });
+      expect(result).toContain('+committed branch work');
+      expect(result).not.toContain('uncommitted overwrite');
+    }
+  });
+
   it('returns added and modified paths with their status letters', async () => {
     const { repository } = createRepositoryWithRemote();
     fs.writeFileSync(path.join(repository, 'added.txt'), 'new\n');

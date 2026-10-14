@@ -61,7 +61,7 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
           remotes: [], auxiliary: [] },
       });
       case '/api/git/branch-base': return Response.json({ base: null });
-      case '/api/git/range-files': return Response.json({ files: [{ path: url.searchParams.get('base') === 'refs/heads/parent' ? 'parent.png' : 'branch.png', status: 'M' }] });
+       case '/api/git/range-files': return Response.json({ files: [{ path: 'branch.png', status: 'M' }] });
       case '/api/git/range-diff':
         return failBranchDiff
           ? Response.json({ error: 'Branch diff failed' }, { status: 500 })
@@ -77,7 +77,7 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
       // The bound status contract echoes the branch it answered for.
       case '/api/source-control/github/pr/status': return Response.json({ connected: true, branch: url.searchParams.get('branch'),
         repo: { owner: 'upstream', repo: 'project', url: 'https://github.com/upstream/project' },
-        pr: { number: 42, title: 'Published PR', url: 'https://github.com/upstream/project/pull/42', state: 'open', draft: false, head: 'feature', base: 'main' } });
+        pr: { number: 42, title: 'Published PR', url: 'https://github.com/upstream/project/pull/42', state: 'open', draft: false, head: 'feature', base: 'parent' } });
       case '/api/source-control/github/pulls/list': return Response.json({ connected: true, repo: { owner: 'upstream', repo: 'project' },
         prs: [{ number: 42, title: 'Published PR', url: 'https://github.com/upstream/project/pull/42', state: 'open', draft: false,
           head: 'feature', base: 'main', sourceRepo: { owner: 'upstream', repo: 'project', source: 'upstream' } }], hasMore: false });
@@ -91,6 +91,8 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
   const { RuntimeAPIContext } = await import('@/contexts/runtimeAPIContext');
   const { createWebAPIs } = await import('../../../web/src/api/index');
   const { useGitStore } = await import('@/stores/useGitStore');
+  const { useGitBaseBranchStore } = await import('@/stores/useGitBaseBranchStore');
+  useGitBaseBranchStore.getState().setOverride('/repo', 'feature', 'refs/heads/parent');
   const { getSourceControlAuthKey, useSourceControlAuthStore } = await import('@/stores/useSourceControlAuthStore');
   useSourceControlAuthStore.setState({
     entries: { [getSourceControlAuthKey({ provider: 'github', instance: 'github.com' })]: { status: CONNECTED, isLoading: false, hasChecked: true } },
@@ -159,13 +161,11 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
     await chooseMode('Branch');
     expect(container.querySelector('[aria-label="Sync Changes"]')).toBeNull();
     expect(checkoutControl()).toBeUndefined();
-    // With nothing chosen, the base is detected: the reflog has no answer
-    // here, so the open pull request's base or the default branch names the
-    // bound remote's copy.
+    // The repository default wins over the saved override and open PR base.
     expect(container.querySelector('[aria-label="Base branch"]')?.textContent).toContain('origin/main');
     expect(requests.some((url) => url.pathname === '/api/git/range-files' && url.searchParams.get('base') === 'origin/main')).toBe(true);
-    await click('[aria-label="Base branch"]');
-    await click('[data-value="refs/heads/main"]');
+    expect(container.querySelector('button[aria-label="Base branch"]')).toBeNull();
+    expect(requests.filter((url) => url.pathname === '/api/git/branch-base')).toHaveLength(0);
     expect(container.querySelector('[title="branch.png"]')).not.toBeNull();
     await openFile('branch.png');
     expect(container.textContent).toContain('Branch diff failed');
@@ -175,7 +175,7 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
     if (!retry) throw new Error('Missing diff retry');
     await act(async () => { retry.click(); });
     expect(container.textContent).toContain('Content of this file cannot be viewed.');
-    expect(container.textContent).toContain('Branch · main');
+    expect(container.textContent).toContain('Branch · origin/main');
 
     const beforeHide = comparisonRequests().length;
     visible = false;
@@ -186,10 +186,8 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
     await render();
     expect(container.querySelector('h2')?.textContent).toBe('branch.png');
     await click('[aria-label="Back"]');
-    await click('[aria-label="Base branch"]');
-    await click('[data-value="refs/heads/parent"]');
-    expect(container.querySelector('[title="branch.png"]')).toBeNull();
-    expect(container.querySelector('[title="parent.png"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Base branch"]')?.textContent).toContain('origin/main');
+    expect(container.querySelector('[title="branch.png"]')).not.toBeNull();
 
     await chooseMode('Commit');
     expect(container.querySelector('[aria-label="Sync Changes"]')).toBeNull();
@@ -203,7 +201,7 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
     const commitRequest = [...requests].reverse().find((url) => url.pathname === '/api/git/commit-diff');
     expect(commitRequest?.searchParams.get('hash')).toBe('b'.repeat(40));
     expect(commitRequest?.searchParams.get('previousPath')).toBe('old.png');
-    expect(requests.filter((url) => url.pathname === '/api/git/range-diff').every((url) => url.searchParams.get('includeWorkingTree') === 'true')).toBe(true);
+    expect(requests.filter((url) => /\/range-(files|diff)$/.test(url.pathname)).every((url) => !url.searchParams.has('includeWorkingTree'))).toBe(true);
 
     await click('[aria-label="Back"]');
     await chooseMode('Pull Requests');

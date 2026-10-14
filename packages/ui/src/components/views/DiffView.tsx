@@ -11,10 +11,8 @@ import { useNestedGitDirectory } from '@/hooks/useNestedGitDirectory';
 import { NestedRepoPicker } from '@/components/views/git/NestedRepoPicker';
 import { ContextPanelHeaderToolbar } from '@/components/layout/contextPanelHeaderSlot';
 import { useInContextPanelHeader } from '@/components/layout/contextPanelHeaderSlotContext';
-import { BranchComparisonSelector } from '@/components/views/git/BranchComparisonSelector';
 import { branchRefLabel } from '@/components/views/git/baseBranch';
 import { useGitStore, useGitStatus, useIsGitRepo, useGitLoadingStatus } from '@/stores/useGitStore';
-import { useGitBaseBranchStore } from '@/stores/useGitBaseBranchStore';
 import { useBranchComparisonBase } from '@/hooks/useBranchComparisonBase';
 import { useDiffToolbarFit } from '@/components/views/useDiffToolbarFit';
 import { branchPathRevisions, coerceDiffScope, isBranchScopeAvailable, isBranchScopeDefinitelyUnavailable, useRangeKeyedCache, useBoundedDirectoryRetry } from './branchDiffScope';
@@ -1426,33 +1424,28 @@ export const DiffView: React.FC<DiffViewProps> = ({
         BRANCH_METADATA_MAX_ATTEMPTS
     );
 
-    const setBaseOverride = useGitBaseBranchStore((state) => state.setOverride);
-    const clearBaseOverride = useGitBaseBranchStore((state) => state.clearOverride);
     const remoteNames = React.useMemo(
         () => new Set(binding.read?.repository.remotes.map((remote) => remote.name) ?? []),
         [binding.read]
     );
-    // Chosen, else the open pull request's base, else the reflog, else the
-    // default branch, qualified to the bound remote's copy where it has one.
+    // Branch shows committed work against the repository's default branch.
     // Resolved in every scope: whether a base exists decides whether the
     // Branch scope is offered at all. VS Code has no context diff panel.
-    const { base: qualifiedBranchBase, source: branchBaseSource, resolved: isBranchBaseResolved, revision: branchRevision } = useBranchComparisonBase(
+    const { base: qualifiedBranchBase, resolved: isBranchBaseResolved, revision: branchRevision } = useBranchComparisonBase(
         effectiveDirectory ?? null,
         currentBranch,
         visible && !isVSCodeRuntime() && isGitRepo !== false,
-        { branches, remoteNames, primaryRemote: binding.contexts[0]?.primaryRemote, readContext: binding.contexts[0] ?? null },
+        { branches, remoteNames, primaryRemote: binding.contexts[0]?.primaryRemote, readContext: binding.contexts[0] ?? null, defaultOnly: true },
     );
     const showBranchOption = !isVSCodeRuntime() && isBranchScopeAvailable(currentBranch, qualifiedBranchBase);
-    // On a branch with a base, the default view is the whole branch against
-    // it, uncommitted work included: what its pull request will merge. It
+    // On a branch with a base, the default view is its committed changes. It
     // follows the branch until the person picks a view.
     React.useEffect(() => {
         if (diffScope === null) setActiveDiffScope(showBranchOption ? 'branch' : 'working');
     }, [diffScope, showBranchOption]);
     // Coercion acts only on CONFIRMED unavailability: the runtime has no branch
-    // scope at all, a settled status has no branch (detached HEAD), every base
-    // candidate answered without a base (the default branch, or a repository
-    // with nothing to compare against), or metadata retries were exhausted.
+    // scope at all, a settled status has no branch (detached HEAD), the default
+    // branch cannot be resolved, or metadata retries were exhausted.
     // While status and the base are still loading a persisted branch scope
     // must survive instead of being rewritten to working on the first render.
     // `status !== null` is the settled test: before the first status request
@@ -2503,19 +2496,9 @@ export const DiffView: React.FC<DiffViewProps> = ({
                     />
                 )}
                 {activeDiffScope === 'branch' && (
-                    <BranchComparisonSelector
-                        key={JSON.stringify([effectiveDirectory, currentBranch])}
-                        branches={branches?.all ?? []}
-                        currentBranch={currentBranch}
-                        base={qualifiedBranchBase}
-                        automatic={branchBaseSource !== 'chosen'}
-                        onSelect={(base) => {
-                            if (effectiveDirectory && currentBranch) setBaseOverride(effectiveDirectory, currentBranch, base);
-                        }}
-                        onSelectAutomatic={() => {
-                            if (effectiveDirectory && currentBranch) clearBaseOverride(effectiveDirectory, currentBranch);
-                        }}
-                    />
+                    <span dir="ltr" aria-label={t('gitView.pr.field.baseBranch')} className="typography-meta truncate text-muted-foreground">
+                        {branchRefLabel(qualifiedBranchBase ?? '')}
+                    </span>
                 )}
                 {activeDiffScope === 'commit' && (
                     <CommitComparisonSelector

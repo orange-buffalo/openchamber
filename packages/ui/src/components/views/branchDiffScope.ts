@@ -8,10 +8,8 @@ import React from 'react';
 
 /**
  * The "Branch" scope exists while the current branch has a comparison base:
- * chosen, an open pull request's, the one it was created from, or the default
- * branch (the caller decides runtime availability). Resolution skips a base
- * that is the branch itself, so on the default branch with nothing else to
- * compare against the option is not offered. Until the base resolves the
+ * the repository's advertised default branch (the caller decides runtime
+ * availability). The default branch itself can be compared. Until the base resolves the
  * option stays hidden instead of flashing on a guess.
  */
 export const isBranchScopeAvailable = (
@@ -47,8 +45,8 @@ export const isBranchScopeDefinitelyUnavailable = (
 
 /**
  * A context tab persists its scope across branch checkouts and runtime
- * switches. When the Branch scope stops being offered (checked out the
- * default branch, VS Code runtime), fall back to a always-available one instead
+ * switches. When the Branch scope stops being offered (missing default branch,
+ * VS Code runtime), fall back to an always-available one instead
  * of rendering the base-resolution spinner forever.
  */
 export const coerceDiffScope = <T extends string>(

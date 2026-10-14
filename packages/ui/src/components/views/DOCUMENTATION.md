@@ -29,22 +29,21 @@ consume another tab's pending navigation request.
 A Changes tab opened without a scope (the context rail, multirun) stores
 `diffScope: null`, and `DiffView` opens it on Branch whenever the Branch scope
 is offered, else on the working tree. The Branch scope is offered whenever the
-checked-out branch has a comparison base (chosen, the open pull request's, the
-one it was created from, or the default branch; never the branch itself), so a
-repository without a remote gets it from the reflog and the default branch
-does not get it at all. The default follows the branch until the person picks a scope,
+checked-out branch has a resolvable advertised repository default branch. It uses
+the bound remote, otherwise origin or the sole remote advertising a default.
+It never substitutes a PR base, reflog parent, or saved base override. The default
+branch itself may be compared too. The default follows the branch until the person picks a scope,
 which is persisted on the tab; coercing a default Branch view back to the
 working tree is not persisted either. Entry points that name what they show keep
 their scope: the work-status Changes row counts working-tree changes and opens
 `working`, and a file opened from the Git panel or a tool card opens its own
 working or staged diff.
 
-A status read re-reads the Branch file list (one request). Each expanded file
-re-reads its patch only when its own `revision` from that listing moved
-(`branchPathRevisions` into `useRangeKeyedCache`), so an agent's read-only shell
-command costs no patch reads, and an edit costs one for the edited file. A
-listing without revisions falls back to the status revision for every file.
-Desktop Changes and mobile Changes share this.
+Branch compares the merge base of the default branch and current branch to the
+current branch's committed tip. Staged, unstaged, and untracked work is excluded,
+including when expanding context. Uncommitted remains a separate scope. A status
+read refreshes the Branch file list and its expanded patches through the status
+revision fallback. Desktop Changes and mobile Changes share this behavior.
 
 `WalkthroughView` gates discovery and source loading while retaining generated
 results and any explicitly started generation job.

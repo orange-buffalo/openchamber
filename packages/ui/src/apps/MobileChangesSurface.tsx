@@ -11,7 +11,6 @@ import { dropdownTriggerVariants } from '@/components/ui/dropdown-trigger';
 import { ScrollShadow } from '@/components/ui/ScrollShadow';
 import { ChangesPanel, type ChangesGroupConfig } from '@/components/views/git/ChangesPanel';
 import { BranchSelector } from '@/components/views/git/BranchSelector';
-import { BranchComparisonSelector } from '@/components/views/git/BranchComparisonSelector';
 import { CommitComparisonSelector } from '@/components/views/git/CommitComparisonSelector';
 import { branchRefLabel } from '@/components/views/git/baseBranch';
 import { branchPathRevisions, isBranchScopeAvailable, isBranchScopeDefinitelyUnavailable, useRangeKeyedCache } from '@/components/views/branchDiffScope';
@@ -46,7 +45,6 @@ import { useCommitComparison } from '@/hooks/useCommitComparison';
 import { usePullRequestComparison } from '@/hooks/usePullRequestComparison';
 import { PullRequestComparisonSelector } from '@/components/views/git/PullRequestComparisonSelector';
 import { useGitComparison, type GitComparisonFile, type GitComparisonSource } from '@/hooks/useGitComparison';
-import { useGitBaseBranchStore } from '@/stores/useGitBaseBranchStore';
 import { usePullRequestSelectionStore } from '@/stores/usePullRequestSelectionStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
@@ -282,8 +280,6 @@ export const MobileChangesPane: React.FC<MobileChangesPaneProps> = ({ rootDirect
   }, []);
 
   const currentBranch = status?.current ?? null;
-  const setBaseOverride = useGitBaseBranchStore((state) => state.setOverride);
-  const clearBaseOverride = useGitBaseBranchStore((state) => state.clearOverride);
   const commitComparison = useCommitComparison(currentDirectory || null, currentBranch, visible && mode === 'commit' && isGitRepo === true);
   const selectedCommitHash = commitComparison.selectedCommit?.hash ?? null;
   const binding = useRepositoryBinding(currentDirectory || null, sourceControl);
@@ -294,7 +290,7 @@ export const MobileChangesPane: React.FC<MobileChangesPaneProps> = ({ rootDirect
   // Resolved in every mode: whether a base exists decides whether the Branch
   // mode is offered at all.
   const branchComparison = useBranchComparisonBase(currentDirectory || null, currentBranch, visible && isGitRepo === true, {
-    branches, remoteNames, primaryRemote: binding.contexts[0]?.primaryRemote, readContext: binding.contexts[0] ?? null,
+    branches, remoteNames, primaryRemote: binding.contexts[0]?.primaryRemote, readContext: binding.contexts[0] ?? null, defaultOnly: true,
   });
   const showBranchOption = isBranchScopeAvailable(currentBranch, branchComparison.base);
   const branchUnavailable = isGitRepo === false
@@ -1121,11 +1117,7 @@ export const MobileChangesPane: React.FC<MobileChangesPaneProps> = ({ rootDirect
           </DropdownMenuContent>
         </DropdownMenu>
         {visible && mode === 'branch' && (
-          <BranchComparisonSelector mobile key={JSON.stringify([ownerKey, currentBranch])}
-            branches={branches?.all ?? []} currentBranch={currentBranch} base={branchComparison.base}
-            automatic={branchComparison.source !== 'chosen'}
-            onSelect={(base) => { if (currentBranch) setBaseOverride(currentDirectory, currentBranch, base); }}
-            onSelectAutomatic={() => { if (currentBranch) clearBaseOverride(currentDirectory, currentBranch); }} />
+          <span dir="ltr" aria-label={t('gitView.pr.field.baseBranch')} className="typography-meta truncate text-muted-foreground">{branchRefLabel(branchComparison.base ?? '')}</span>
         )}
         {visible && mode === 'commit' && (
           <CommitComparisonSelector mobile key={JSON.stringify([ownerKey, currentBranch])}

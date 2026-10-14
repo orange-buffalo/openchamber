@@ -1,5 +1,34 @@
 import { describe, expect, test } from 'bun:test';
-import { deriveBaseBranch, hasResolvableBaseBranch, qualifyBaseRef, resolveBranchComparisonBase } from './baseBranch';
+import { deriveBaseBranch, hasResolvableBaseBranch, qualifyBaseRef, resolveBranchComparisonBase, resolveDefaultBranchComparisonBase } from './baseBranch';
+
+describe('default branch comparison', () => {
+  const options = {
+    localBranches: ['next', 'react'],
+    remoteBranches: ['origin/react', 'upstream/next'],
+    remoteNames: new Set<string>(),
+    primaryRemote: null,
+  };
+
+  test('uses the advertised origin default, including on the default branch itself', () => {
+    expect(resolveDefaultBranchComparisonBase({ origin: 'react' }, options)).toEqual({ ref: 'origin/react', source: 'default' });
+  });
+
+  test('honors the bound repository remote over origin', () => {
+    expect(resolveDefaultBranchComparisonBase({ origin: 'react', upstream: 'next' }, { ...options, primaryRemote: 'upstream' }))
+      .toEqual({ ref: 'upstream/next', source: 'default' });
+  });
+
+  test('handles a sole renamed remote and qualified defaults', () => {
+    expect(resolveDefaultBranchComparisonBase({ upstream: 'upstream/next' }, options)).toEqual({ ref: 'upstream/next', source: 'default' });
+  });
+
+  test('does not guess a conventional branch or another remote when metadata is missing', () => {
+    expect(resolveDefaultBranchComparisonBase(undefined, options)).toBeNull();
+    expect(resolveDefaultBranchComparisonBase({ origin: 'react' }, { ...options, primaryRemote: 'missing' })).toBeNull();
+    expect(resolveDefaultBranchComparisonBase({ first: 'next', second: 'react' }, options)).toBeNull();
+    expect(resolveDefaultBranchComparisonBase({ origin: 'missing' }, options)).toBeNull();
+  });
+});
 
 describe('deriveBaseBranch', () => {
   test('prefers the repository default branch over conventional fallbacks', () => {

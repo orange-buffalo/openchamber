@@ -66,7 +66,7 @@ test('comparison reads preserve scope, report failures, retry, and stop while hi
     await render();
     expect(requests).toHaveLength(1);
     expect(requests[0].url.searchParams.get('base')).toBe('refs/heads/main');
-    expect(requests[0].url.searchParams.get('includeWorkingTree')).toBe('true');
+    expect(requests[0].url.searchParams.get('includeWorkingTree')).toBeNull();
     await finish(0, Response.json({ files: [{ path: 'a.ts', status: 'M' }] }));
     expect(current().files?.map((file) => file.path)).toEqual(['a.ts']);
     const oldRefresh = current().refresh;
@@ -75,7 +75,7 @@ test('comparison reads preserve scope, report failures, retry, and stop while hi
     const patch = current().fetchDiff('a.ts');
     await act(async () => { await Promise.resolve(); });
     expect(requests[1].url.pathname).toBe('/api/git/range-diff');
-    expect(requests[1].url.searchParams.get('includeWorkingTree')).toBe('true');
+    expect(requests[1].url.searchParams.get('includeWorkingTree')).toBeNull();
     await finish(1, Response.json({ diff: 'branch patch' }));
     expect(await patch).toEqual({ diff: 'branch patch' });
 

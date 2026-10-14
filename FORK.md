@@ -35,6 +35,16 @@ The upstream option-like-remote test explicitly creates its remote HEAD fixture,
 matching the local symbolic-ref default-branch reader. Its duplicate `commit`
 import is removed so the test module remains valid JavaScript.
 
+## Git branch comparison
+
+The Git scope dropdown includes upstream's Branch option on desktop and mobile.
+In this fork it compares only the current branch's commits against the merge base
+with the repository's advertised default branch. Prefer the bound remote, then
+origin, then a sole remote with default metadata. Never guess main or master,
+substitute a PR or reflog base, or include uncommitted changes. Display the resolved
+base instead of offering an override. The default branch itself may be compared.
+VS Code retains its existing unsupported Branch context-panel behavior.
+
 ## Usage-limit automatic retry
 
 Continue a task after a provider usage-limit error without resending its original

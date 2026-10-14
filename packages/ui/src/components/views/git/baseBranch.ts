@@ -172,6 +172,22 @@ export const qualifyBaseRef = (candidate: string | null | undefined, options: {
 /** Where a branch comparison's base came from, most authoritative first. */
 export type BranchComparisonBaseSource = 'chosen' | 'pull-request' | 'created-from' | 'default';
 
+/** Changes compares committed work to the repository's advertised default, not a PR or reflog parent. */
+export const resolveDefaultBranchComparisonBase = (
+  defaults: Readonly<Record<string, string>> | undefined,
+  options: Parameters<typeof qualifyBaseRef>[1],
+): { ref: string; source: BranchComparisonBaseSource } | null => {
+  const remotes = Object.keys(defaults ?? {});
+  const remote = options.primaryRemote ?? (remotes.includes('origin') ? 'origin' : remotes.length === 1 ? remotes[0] : null);
+  if (!remote) return null;
+  const ref = qualifyBaseRef(defaults?.[remote], {
+    ...options,
+    primaryRemote: remote,
+    remoteNames: new Set([...options.remoteNames, ...remotes]),
+  });
+  return ref ? { ref, source: 'default' } : null;
+};
+
 /**
  * The base a branch is compared against: the person's choice, else the base
  * of the branch's open pull request (what it will actually merge into, and the

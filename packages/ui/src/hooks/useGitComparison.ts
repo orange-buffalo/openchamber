@@ -73,7 +73,7 @@ export function useGitComparison(
         if (!context) throw new Error(t(changeRequestCopy('session.githubPrPicker.empty.notConnected', provider)));
         files = await prCache.load(pushScope, target, () => fetchPullRequestDiff(directory, target, context), force, targetAuthority);
       } else if (target.kind === 'branch') {
-        files = (await getGitRangeFiles(directory, { base: target.baseRef, head: target.headRef, includeWorkingTree: true }))
+        files = (await getGitRangeFiles(directory, { base: target.baseRef, head: target.headRef }))
           .map((file) => ({ ...file, insertions: 0, deletions: 0 }));
       } else {
         files = (await getCommitFiles(directory, target.hash)).files
@@ -107,7 +107,7 @@ export function useGitComparison(
       return { diff: file.patch };
     }
     return target.kind === 'branch'
-      ? getGitRangeDiff(directory, { base: target.baseRef, head: target.headRef, path: filePath, contextLines, includeWorkingTree: true })
+      ? getGitRangeDiff(directory, { base: target.baseRef, head: target.headRef, path: filePath, contextLines })
       : getGitCommitDiff(directory, { hash: target.hash, path: filePath, previousPath: file.previousPath, contextLines });
   }, [directory, enabled, filesByPath, key, t]);
 

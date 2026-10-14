@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { resolveBranchComparisonBase, type BranchComparisonBaseSource } from '@/components/views/git/baseBranch';
+import { resolveBranchComparisonBase, resolveDefaultBranchComparisonBase, type BranchComparisonBaseSource } from '@/components/views/git/baseBranch';
 import type { GitBranch } from '@/lib/api/types';
 import { getBranchBase } from '@/lib/gitApi';
 import { getRuntimeKey } from '@/lib/runtime-switch';
@@ -16,6 +16,8 @@ export interface BranchComparisonRepository {
   primaryRemote: string | null | undefined;
   /** The bound read context, whose pull request status names the merge target. */
   readContext: SourceControlReadContext | null;
+  /** Changes uses the advertised default only; walkthroughs retain their base selection. */
+  defaultOnly?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ export function useBranchComparisonBase(
   enabled: boolean,
   repository: BranchComparisonRepository,
 ) {
-  const { branches, remoteNames, primaryRemote, readContext } = repository;
+  const { branches, remoteNames, primaryRemote, readContext, defaultOnly = false } = repository;
   const runtimeKey = useGitStore((state) => state.runtimeKey);
   const statusFetchedAt = useGitStore((state) => enabled && directory
     ? state.directories.get(directory)?.lastStatusFetch ?? 0
@@ -46,7 +48,7 @@ export function useBranchComparisonBase(
   const [detected, setDetected] = useState<{ key: string; base: string | null } | null>(null);
 
   useEffect(() => {
-    if (!enabled || !directory || !branch) return;
+    if (!enabled || !directory || !branch || defaultOnly) return;
     let cancelled = false;
     const requestRuntime = getRuntimeKey();
     getBranchBase(directory, branch)
@@ -60,13 +62,19 @@ export function useBranchComparisonBase(
         setDetected((previous) => previous?.key === key ? previous : { key, base: null });
       });
     return () => { cancelled = true; };
-  }, [branch, directory, enabled, key, statusFetchedAt]);
+  }, [branch, directory, enabled, key, statusFetchedAt, defaultOnly]);
 
   const detectedSettled = detected?.key === key;
   const createdFrom = detectedSettled ? detected.base : null;
   const resolution = useMemo(() => {
     if (!branch || !branches) return null;
     const all = branches.all ?? [];
+    if (defaultOnly) return resolveDefaultBranchComparisonBase(branches.defaultBranches, {
+      localBranches: all.filter((name) => !name.startsWith('remotes/')),
+      remoteBranches: all.filter((name) => name.startsWith('remotes/')).map((name) => name.slice('remotes/'.length)),
+      remoteNames,
+      primaryRemote,
+    });
     return resolveBranchComparisonBase({
       chosen: override,
       pullRequest: pullRequestBase,
@@ -80,14 +88,14 @@ export function useBranchComparisonBase(
       primaryRemote,
       headBranch: branch,
     });
-  }, [branch, branches, createdFrom, detectedSettled, override, primaryRemote, pullRequestBase, remoteNames]);
+  }, [branch, branches, createdFrom, detectedSettled, override, primaryRemote, pullRequestBase, remoteNames, defaultOnly]);
 
   const source: BranchComparisonBaseSource | null = resolution?.source ?? null;
   return {
     base: resolution?.ref ?? null,
     source,
     // Settled once a base is found, or once every candidate has answered.
-    resolved: Boolean(resolution) || (detectedSettled && branches !== null),
+    resolved: Boolean(resolution) || ((defaultOnly || detectedSettled) && branches !== null),
     revision: JSON.stringify([runtimeKey, statusFetchedAt]),
   };
 }
