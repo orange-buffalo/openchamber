@@ -13,6 +13,8 @@ type RecoveryScreenProps = {
   hostUrl?: string;
   /** Host label for recovery context */
   hostLabel?: string;
+  /** Saved host the recovery is about, when the boot named one */
+  hostId?: string;
   /** Callback when user wants to retry */
   onRetry?: () => void;
   /** Callback when user chooses remote */

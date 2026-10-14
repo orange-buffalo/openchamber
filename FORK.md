@@ -9,9 +9,14 @@ Update this file in the same commit as the change it describes.
 
 ## Stable upstream sync
 
-Integrated upstream v2.1.1. Preserve the fork's removed self-update and usage
+Integrated upstream v2.3.2. Preserve the fork's removed self-update and usage
 reporting flows, automatic usage-limit retry, and release artifact workflows.
 New upstream tests for the removed update store are intentionally excluded.
+The v2.3.2 sync also excludes remote-host and Linux package self-update helpers.
+Keep the new desktop instance switcher without its update controls. Arabic and
+Hebrew include the fork's retry messages, and sidebar customizations use logical
+spacing to follow upstream's right-to-left layouts. Adapt visual fixtures to the
+new sidebar model and message renderer.
 
 ## Git tree and uncommitted comparison
 

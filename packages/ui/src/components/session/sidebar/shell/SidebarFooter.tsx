@@ -1,26 +1,30 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from "@/components/icon/Icon";
+import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { useUIStore } from '@/stores/useUIStore';
+import { DesktopInstanceMenu } from '@/components/desktop/DesktopInstanceMenu';
 
 type Props = {
   onOpenSettings: () => void;
-  onOpenUsage: () => void;
   onOpenShortcuts: () => void;
   onOpenAbout: () => void;
   showRuntimeButtons?: boolean;
 };
 
-const footerButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const footerButtonClassName = 'inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const pressedFooterButtonClassName = 'bg-interactive-selection text-interactive-selection-foreground hover:bg-interactive-selection hover:text-interactive-selection-foreground';
 
 export function SidebarFooter({
   onOpenSettings,
-  onOpenUsage,
   onOpenShortcuts,
   onOpenAbout,
   showRuntimeButtons = true,
 }: Props): React.ReactNode {
   const { t } = useI18n();
+  // Usage is a page in the main area: the button stays pressed while it is open and closes it again.
+  const isUsageOpen = useUIStore((state) => state.isUsageStatsPageOpen);
 
   if (!showRuntimeButtons) {
     return null;
@@ -33,15 +37,21 @@ export function SidebarFooter({
           <Tooltip>
             <TooltipTrigger asChild>
               <button type="button" onClick={onOpenSettings} className={footerButtonClassName} aria-label={t('sessions.sidebar.footer.actions.settings')}>
-                <Icon name="settings-3" className="h-4.5 w-4.5" />
+                <Icon name="settings-3" className="h-4 w-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.settings')}</p></TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" onClick={onOpenUsage} className={footerButtonClassName} aria-label={t('usageStats.openAction')}>
-                <Icon name="bar-chart" className="h-4.5 w-4.5" />
+              <button
+                type="button"
+                onClick={() => useUIStore.getState().setUsageStatsPageOpen(!isUsageOpen)}
+                className={cn(footerButtonClassName, isUsageOpen && pressedFooterButtonClassName)}
+                aria-label={t('usageStats.openAction')}
+                aria-pressed={isUsageOpen}
+              >
+                <Icon name="bar-chart" className="h-4 w-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={4}><p>{t('usageStats.openAction')}</p></TooltipContent>
@@ -49,20 +59,23 @@ export function SidebarFooter({
           <Tooltip>
             <TooltipTrigger asChild>
               <button type="button" onClick={onOpenShortcuts} className={footerButtonClassName} aria-label={t('sessions.sidebar.footer.actions.shortcuts')}>
-                <Icon name="command" className="h-4.5 w-4.5" />
+                <Icon name="command" className="h-4 w-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.shortcuts')}</p></TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" onClick={onOpenAbout} className={footerButtonClassName} aria-label={t('sessions.sidebar.footer.actions.aboutOpenChamber')}>
-                <Icon name="information" className="h-4.5 w-4.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.aboutOpenChamber')}</p></TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={onOpenAbout} className={footerButtonClassName} aria-label={t('sessions.sidebar.footer.actions.aboutOpenChamber')}>
+                  <Icon name="information" className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.aboutOpenChamber')}</p></TooltipContent>
+            </Tooltip>
         </>
+      ) : null}
+      {showRuntimeButtons ? (
+        <DesktopInstanceMenu className="ms-auto inline-flex h-6 min-w-0 max-w-[12rem] items-center gap-1.5 rounded-md px-2 text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       ) : null}
     </div>
   );

@@ -52,7 +52,6 @@ const scenarios = {
         sessionId={assistantResponse.sessionID}
         messageId={assistantResponse.messageID}
         streamPhase="completed"
-        chatRenderMode="sorted"
       />
     ),
   },

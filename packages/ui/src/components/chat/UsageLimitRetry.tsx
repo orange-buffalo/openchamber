@@ -75,7 +75,7 @@ export function UsageLimitRetry({ body, sessionId, messageId, observedAt }: {
     } catch { if (startedScope === scope.current) setFailed(true); }
     finally { if (startedScope === scope.current) setCancelling(false); }
   };
-  return <div className="mt-2 space-y-1 pl-7 text-sm">
+  return <div className="mt-2 space-y-1 ps-7 text-sm">
     {limit.resetAt !== null && <p>{t('chat.usageLimit.reset', { time: date(limit.resetAt) })}</p>}
     {unsupported && <p>{t('chat.usageLimit.unsupported')}</p>}
     {schedule?.status === 'skipped' && <p>{t('chat.usageLimit.skipped')}</p>}

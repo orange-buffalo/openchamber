@@ -95,12 +95,15 @@ collision gets a numeric suffix. Sharing is refused only when the checkout canno
 | Method | Route | Notes |
 |---|---|---|
 | GET | `/api/project-context/:projectId` | full context; missing file is `200` empty |
-| PUT | `/api/project-context/:projectId/todos` | replaces the whole list; returns committed context |
+| PUT | `/api/project-context/:projectId/todos` | replaces the whole list (reorder, clear completed); returns committed context |
+| POST | `/api/project-context/:projectId/todos` | `201`; takes `{text, id?}`, adds one open todo before the completed ones; the panel sends the id its row already shows, and a taken or missing id gets a fresh one; returns committed context |
+| PATCH | `/api/project-context/:projectId/todos/:todoId` | takes `text` and/or `completed`; completing moves it last, reopening puts it before the completed ones; returns committed context; `404` when unknown |
+| DELETE | `/api/project-context/:projectId/todos/:todoId` | returns committed context; `404` when unknown |
 | POST | `/api/project-context/:projectId/notes` | `201`; takes `{body, source?, origin?}` |
 | PATCH | `/api/project-context/:projectId/notes/:noteId` | patches `body`; legacy `pinned` input is ignored by session knowledge; `404` when unknown |
 | DELETE | `/api/project-context/:projectId/notes/:noteId` | `404` when unknown |
 | PATCH | `/api/project-context/:projectId/plans/:planId` | legacy project pin state only; session attachment uses session knowledge; `404` when unknown |
-| GET | `/api/project-context/:projectId/plans/:planId` | `404` when the link or its markdown is gone |
+| GET | `/api/project-context/:projectId/plans/:planId` | `404` when the link or its markdown is gone; the answer carries `path`, the markdown's absolute path, so comments on the plan name the file to the agent (reads and writes stay id-addressed) |
 | POST | `/api/project-context/:projectId/plans` | `201`; takes `{title, body}`, never a path |
 | PUT | `/api/project-context/:projectId/plans/:planId` | takes the whole `{raw}` document; `404` when the link or its markdown is gone |
 | DELETE | `/api/project-context/:projectId/plans/:planId` | `404` when unknown |
@@ -118,6 +121,12 @@ on a bare express app so that failure mode fails the suite instead of the user.
 `projectId` is validated against `/^[a-zA-Z0-9._:-]+$/`, which rejects
 separators and traversal. Validation failures are `400`; malformed stored data
 and I/O failures are `500`.
+
+## Change notifications
+
+After `writeContext` atomically commits `context.json`, the runtime calls its optional `onChanged(projectId)` dependency. The server broadcasts `openchamber:project-context-changed` with `{ projectId }` on the existing OpenChamber control stream. It carries the path-derived owner id, not the bounded storage stem or any note content. Failed writes and missing-entry no-ops announce nothing. Updating or deleting a shared plan through the API announces the same way after the file write, since shared plans have no manifest entry.
+
+Clients re-read authoritative context for the visible owner. This is a commit notification, not a filesystem watcher; direct changes to shared plan files outside the API retain their existing read-on-open behavior.
 
 ## Invariants
 
@@ -149,6 +158,16 @@ and I/O failures are `500`.
 - **A note body can be clamped but never blanked.** An empty body is rejected
   rather than stored, since a note with nothing in it is indistinguishable from
   a delete the user did not ask for.
+- **Panel item writes touch one todo.** The panel sends a check, uncheck,
+  add or delete as one item route, applied to the list as it is on disk, so a
+  todo an agent added since the panel's last read survives it. Only a reorder
+  or "clear completed" sends the whole list.
+- **Agents write conditionally; the panel does not.** `updateNote` and
+  `updatePlan` take an optional `expectedBody` / `expectedRaw` and answer `409`
+  without writing or announcing when the stored text differs. Only the agent
+  tool passes them (`../openchamber-control/project-knowledge.js`): what the
+  user types in the panel is saved over an agent's change, and an agent that
+  read before the user's save is refused and reads again.
 - **Notes are capped at 200 per project.** Past that, creation fails loudly
   instead of silently evicting the oldest entry.
 - **Per-entry sanitization never fails the whole read.** A malformed todo or

@@ -9,6 +9,7 @@ import type { OpenCodeManager } from './opencode';
 import { activateQuotaGiftReset, fetchQuotaForProvider, listConfiguredQuotaProviders, type QuotaGiftResetType } from './quotaProviders';
 import { credentialStatus, deleteCredential, importCursorCredential, normalizeCredential, readCredential, validateCredential, writeCredential, type ManagedProvider } from './quotaCredentials';
 import { getSessionActivitySnapshot } from './sessionActivityWatcher';
+import { sessionNotificationSchema } from './sessionNotifications';
 import { getOpenCodeUpgradeStatus, upgradeManagedOpenCode } from './opencode-upgrade-runtime';
 import { normalizeWindowsDriveLetter, pathsEqualWithNormalizedDriveLetter } from './pathUtils';
 import { resolveWorkspaceFolders } from './workspaceResolver';
@@ -60,27 +61,6 @@ type SystemRuntimeDeps = {
   fetchModelsMetadata: () => Promise<unknown>;
   clientReloadDelayMs: number;
 };
-
-const NOTIFICATION_CLAIM_TTL_MS = 10_000;
-const notificationClaims = new Map<string, number>();
-
-const claimNotification = (key: string): boolean => {
-  const now = Date.now();
-  for (const [claimKey, claimedAt] of notificationClaims) {
-    if (now - claimedAt > NOTIFICATION_CLAIM_TTL_MS) {
-      notificationClaims.delete(claimKey);
-    }
-  }
-
-  const existing = notificationClaims.get(key);
-  if (existing && now - existing <= NOTIFICATION_CLAIM_TTL_MS) {
-    return false;
-  }
-
-  notificationClaims.set(key, now);
-  return true;
-};
-
 
 const VIRTUAL_DIFF_SCHEME = 'openchamber-diff';
 const virtualDiffContents = new Map<string, string>();
@@ -209,11 +189,13 @@ export async function handleSystemBridgeMessage(
       return { id, type, success: true, data: getSessionActivitySnapshot() };
     }
 
-    case 'api:notifications:claim': {
-      const key = typeof (payload as { key?: unknown } | undefined)?.key === 'string'
-        ? (payload as { key: string }).key.trim()
-        : '';
-      return { id, type, success: true, data: { claimed: key ? claimNotification(key) : false } };
+    case 'api:notifications:show': {
+      const notification = sessionNotificationSchema.safeParse(payload);
+      if (!notification.success) {
+        return { id, type, success: false, error: 'Invalid notification' };
+      }
+      const shown = await vscode.commands.executeCommand<boolean>('openchamber.internal.showNotification', notification.data);
+      return { id, type, success: true, data: { shown: shown === true } };
     }
 
     case 'api:zen:models': {
@@ -447,7 +429,7 @@ export async function handleSystemBridgeMessage(
     case 'api:quota:credentials': {
       const { providerId, method, credential: input } = (payload || {}) as { providerId?: ManagedProvider; method?: string; credential?: unknown };
       try {
-        if (!providerId || !['exe-dev', 'ollama-cloud', 'cursor', 'zenmux'].includes(providerId)) return { id, type, success: false, error: 'Unsupported credential provider' };
+        if (!providerId || !['exe-dev', 'cursor', 'zenmux'].includes(providerId)) return { id, type, success: false, error: 'Unsupported credential provider' };
         if (method === 'GET') return { id, type, success: true, data: credentialStatus(providerId) };
         if (method === 'DELETE') { deleteCredential(providerId); return { id, type, success: true, data: { configured: false } }; }
         if (method === 'IMPORT') {

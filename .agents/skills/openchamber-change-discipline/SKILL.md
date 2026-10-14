@@ -15,7 +15,6 @@ Make the smallest complete change and validate at the narrowest level that cover
 2. Classify every applicable change risk below.
 3. Identify every affected consumer, runtime, persisted format, and public export. This step is complete only when each risk has an owner and required validation.
 
-When instructions materially conflict, stop and resolve the conflict instead of silently choosing one.
 
 ## Risk Classification
 
@@ -92,7 +91,7 @@ Report exactly what ran and what did not.
 ## Completion Standard
 
 - Implement the behavior end to end, including rollback and cleanup.
-- Run focused regression tests for the changed contract.
+- Run focused regression tests for the changed contract; when no test can cover it, say so in the report.
 - Preserve unrelated changes encountered in shared files.
 - Update an owning doc only when the change made something it states untrue.
 - Remove speculative branches, shallow wrappers, and stale compatibility you introduced.

@@ -80,3 +80,6 @@ workspaces/
 test-results/
 artifacts/
 
+# TypeScript build-mode caches: UI declarations for project references
+packages/ui/.tsbuild/
+*.tsbuildinfo

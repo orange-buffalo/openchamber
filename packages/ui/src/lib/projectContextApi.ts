@@ -3,8 +3,9 @@
  *
  * Notes, todos, and plan markdown are owned by the server
  * (`packages/web/server/lib/project-context`). This module only speaks HTTP:
- * it resolves no storage paths and never reads plan files directly, so the
- * shared UI has no knowledge of where any of it lives on disk.
+ * it resolves no storage paths and never reads or writes plan files directly.
+ * The only paths it sees are the ones the server reports (a plan's `path`, the
+ * shared plans folder), and those only name files to the user or an agent.
  *
  * Every function throws on failure. An authoritative read must never resolve
  * to an empty value that a caller could mistake for "the project has nothing".
@@ -54,6 +55,12 @@ interface ProjectContextData {
 interface ProjectPlanContent extends ProjectPlanLink {
   body: string;
   raw: string;
+  /**
+   * Absolute path of the plan's markdown on the server's machine. Only for
+   * naming the plan to an agent (comments quote it); reads and writes stay
+   * addressed by id through these routes.
+   */
+  path?: string;
 }
 
 export interface ProjectRef {
@@ -73,7 +80,9 @@ export interface SavedProjectPlanTarget {
 }
 
 export const PROJECT_NOTE_BODY_MAX_LENGTH = 3000;
-export const PROJECT_TODO_TEXT_MAX_LENGTH = 120;
+export const PROJECT_TODO_TEXT_MAX_LENGTH = 1000;
+/** The server clamps plan titles to the same length. */
+export const PROJECT_PLAN_TITLE_MAX_LENGTH = 160;
 
 /**
  * Split a plan document into title and body, mirroring the server's own rule so
@@ -167,6 +176,42 @@ export const saveProjectTodos = async (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ todos }),
   });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, 'Failed to save project todos'));
+  }
+  return parseContext(await response.json());
+};
+
+/** One todo at a time; see `writeProjectTodo`. */
+export type ProjectTodoChange =
+  | { kind: 'create'; id: string; text: string }
+  | { kind: 'complete'; id: string; completed: boolean }
+  | { kind: 'delete'; id: string };
+
+/**
+ * Write one todo. The server applies the change to its current list, so a
+ * todo an agent added since this client last read survives it. Answers with
+ * the whole committed list, or null when the todo is already gone.
+ */
+export const writeProjectTodo = async (
+  project: ProjectRef,
+  change: ProjectTodoChange,
+): Promise<ProjectContextData | null> => {
+  const base = `${basePath(requireProjectId(project))}/todos`;
+  const json = (method: 'POST' | 'PATCH', body: { id: string; text: string } | { completed: boolean }): RequestInit => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const [url, init] = change.kind === 'create'
+    ? [base, json('POST', { id: change.id, text: change.text })]
+    : change.kind === 'complete'
+      ? [`${base}/${encodeURIComponent(change.id)}`, json('PATCH', { completed: change.completed })]
+      : [`${base}/${encodeURIComponent(change.id)}`, { method: 'DELETE' }];
+  const response = await runtimeFetch(url, init);
+  if (response.status === 404 && change.kind !== 'create') {
+    return null;
+  }
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, 'Failed to save project todos'));
   }

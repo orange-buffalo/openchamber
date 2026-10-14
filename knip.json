@@ -7,8 +7,16 @@
   ],
   "workspaces": {
     ".": {
-      "entry": ["postcss.config.js", "scripts/**/*.{js,cjs,mjs,ts}"],
-      "project": ["*.{js,cjs,mjs,ts}", "scripts/**/*.{js,cjs,mjs,ts}"]
+      "entry": [
+        "oxlint.config.ts",
+        "oxlint.anti-slop.config.ts",
+        "postcss.config.js",
+        "scripts/**/*.{js,cjs,mjs,ts}"
+      ],
+      "project": [
+        "*.{js,cjs,mjs,ts}",
+        "scripts/**/*.{js,cjs,mjs,ts}"
+      ]
     },
     "packages/ui": {
       "entry": [
@@ -62,7 +70,6 @@
         "src/index.ts",
         "src/ui/index.ts",
         "src/schemas.ts",
-        "scripts/bundle-guest.ts",
         "src/**/*.{test,spec}.ts",
         "scripts/**/*.{test,spec}.ts"
       ],

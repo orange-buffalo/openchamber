@@ -150,8 +150,7 @@ export function SidebarProjectsFixture(): React.ReactNode {
     sections: projectSections,
     authoritativeSections: projectSections,
     chatGroup: null,
-    recentSections: [{ key: 'active-now', items: recentItems }],
-    showRecentSection: true,
+    workItems: recentItems,
     foldersMap: {},
     groupSearchDataByGroup: new WeakMap(),
     normalizedQuery: '',
@@ -237,12 +236,10 @@ export function SidebarProjectsFixture(): React.ReactNode {
           homeDirectory: "/home/dev",
           hasSessionSearchQuery: false,
           hideDirectoryControls: false,
-          stickyZoneHeaders: false,
           mobileVariant: false,
           alwaysShowActions: false,
           projectSortOrder: "manual",
           worktreeSortOrder: "manual",
-          timelineView: false,
         }}
         actions={{
           group: {
