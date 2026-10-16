@@ -91,6 +91,8 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
   const { RuntimeAPIContext } = await import('@/contexts/runtimeAPIContext');
   const { createWebAPIs } = await import('../../../web/src/api/index');
   const { useGitStore } = await import('@/stores/useGitStore');
+  const { useUIStore } = await import('@/stores/useUIStore');
+  useUIStore.setState({ diffLayoutPreference: 'inline', diffFileListMode: 'flat', gitChangesViewMode: 'flat', diffFileLayout: { 'branch.png': 'inline' } });
   const { useGitBaseBranchStore } = await import('@/stores/useGitBaseBranchStore');
   useGitBaseBranchStore.getState().setOverride('/repo', 'feature', 'refs/heads/parent');
   const { getSourceControlAuthKey, useSourceControlAuthStore } = await import('@/stores/useSourceControlAuthStore');
@@ -149,6 +151,10 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
 
   try {
     await render();
+    expect(useUIStore.getState().diffLayoutPreference).toBe('side-by-side');
+    expect(useUIStore.getState().diffFileListMode).toBe('tree');
+    expect(useUIStore.getState().gitChangesViewMode).toBe('tree');
+    expect(useUIStore.getState().diffFileLayout).toEqual({});
     const modeTrigger = container.querySelector('[aria-label="Select change mode"]');
     const syncButton = container.querySelector('[aria-label="Publish"]');
     if (!modeTrigger || !syncButton) throw new Error('Missing Changes controls');
@@ -178,12 +184,24 @@ test('mobile comparisons drill into files, retry, resume, change source, and yie
     expect(container.textContent).toContain('Branch · origin/main');
 
     const beforeHide = comparisonRequests().length;
+    await act(async () => {
+      useUIStore.getState().setDiffLayoutPreference('inline');
+      useUIStore.getState().setDiffFileListMode('flat');
+      useUIStore.getState().setDiffFileLayout('branch.png', 'inline');
+    });
+    await render();
+    expect(useUIStore.getState().diffLayoutPreference).toBe('inline');
     visible = false;
     await render();
     await act(async () => { seed('/repo'); });
+    expect(useUIStore.getState().diffLayoutPreference).toBe('inline');
+    expect(useUIStore.getState().diffFileListMode).toBe('flat');
     expect(comparisonRequests()).toHaveLength(beforeHide);
     visible = true;
     await render();
+    expect(useUIStore.getState().diffLayoutPreference).toBe('side-by-side');
+    expect(useUIStore.getState().diffFileListMode).toBe('tree');
+    expect(useUIStore.getState().diffFileLayout).toEqual({});
     expect(container.querySelector('h2')?.textContent).toBe('branch.png');
     await click('[aria-label="Back"]');
     expect(container.querySelector('[aria-label="Base branch"]')?.textContent).toContain('origin/main');

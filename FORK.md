@@ -21,9 +21,13 @@ new sidebar model and message renderer.
 ## Git tree and uncommitted comparison
 
 Keep a tree entry point in the Git header even when the working tree is clean,
-so commit comparisons remain reachable. New installations default to tree views;
-explicitly saved list preferences remain supported. The header tree button always
-opens tree mode.
+so commit comparisons remain reachable. Opening or reactivating Git or Changes
+restores tree mode and side-by-side diffs, including on existing installations
+with saved list or inline choices. Per-file layout overrides are cleared on open;
+list and unified toggles remain usable until the view is reopened. The shared diff
+default is side-by-side, including chat previews, walkthroughs, commit history,
+and mobile Changes.
+Mobile retains its file-list navigation, and VS Code's native diff editor is unchanged.
 
 The Uncommitted scope includes staged, unstaged, and untracked files. Compare
 HEAD with current files regardless of which file opened the panel or whether

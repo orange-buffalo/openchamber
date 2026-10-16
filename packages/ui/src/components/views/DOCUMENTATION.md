@@ -26,6 +26,12 @@ paths and requests fresh status. Completed range diffs remain cached while
 pending reservations are cancelled and retried on resume. Hidden tabs never
 consume another tab's pending navigation request.
 
+In this fork, activating Git or Changes resets its shared view preferences to
+tree navigation and side-by-side diffs, clearing per-file layout overrides.
+Hidden retained views do not reset preferences. Layout changes made while open
+remain usable until the next activation. Mobile keeps its file-list navigation
+but uses the shared side-by-side default for diff details.
+
 A Changes tab opened without a scope (the context rail, multirun) stores
 `diffScope: null`, and `DiffView` opens it on Branch whenever the Branch scope
 is offered, else on the working tree. The Branch scope is offered whenever the

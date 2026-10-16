@@ -148,6 +148,7 @@ export const HistoryCommitRow = React.memo(({
 }: HistoryCommitRowProps) => {
   const { t } = useI18n();
   const timeFormatPreference = useUIStore((state) => state.timeFormatPreference);
+  const renderSideBySide = useUIStore((state) => state.diffLayoutPreference === 'side-by-side');
   const isGraphMode = mode === 'graph';
   type PendingAction =
     | 'checkout' | 'cherryPick' | 'revert'
@@ -661,7 +662,7 @@ export const HistoryCommitRow = React.memo(({
                              modified={cached.modified}
                              language={getLanguageFromExtension(file.path) || ''}
                               fileName={file.path}
-                              renderSideBySide={false}
+                               renderSideBySide={renderSideBySide}
                               layout="inline"
                               enableComments={false}
                             />

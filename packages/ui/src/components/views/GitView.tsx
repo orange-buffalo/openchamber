@@ -231,6 +231,9 @@ export const GitView: React.FC<GitViewProps> = ({ isActive }) => {
   const { t } = useI18n();
   const { git, sourceControl, runtime } = useRuntimeAPIs();
   const currentDirectory = useEffectiveDirectory();
+  React.useLayoutEffect(() => {
+    if (isActive) useUIStore.getState().resetGitViewDefaults();
+  }, [isActive, currentDirectory]);
   const contributorDestination = useContributorDestinationChooser();
   const [worktreeBootstrapSnapshot, setWorktreeBootstrapSnapshot] = React.useState<{
     directory: string;

@@ -161,6 +161,9 @@ export const MobileChangesPane: React.FC<MobileChangesPaneProps> = ({ rootDirect
   // nested repository instead.
   const { rootIsGitRepo, gitDirectory, nestedRepos } = repository;
   const currentDirectory = gitDirectory ?? rootDirectory;
+  React.useLayoutEffect(() => {
+    if (visible) useUIStore.getState().resetGitViewDefaults();
+  }, [visible, rootDirectory]);
   const status = useGitStatus(currentDirectory || null);
   const choosesPushDestination = useIsContributorWorktree(currentDirectory);
   const branches = useGitBranches(currentDirectory || null);
@@ -1349,6 +1352,7 @@ const MobileDiffDetail: React.FC<{
   const { t } = useI18n();
   const language = React.useMemo(() => getLanguageFromExtension(path) || 'text', [path]);
   const hideWhitespace = useUIStore((state) => state.diffHideWhitespace);
+  const renderSideBySide = useUIStore((state) => state.diffLayoutPreference === 'side-by-side');
   const setHideWhitespace = useUIStore((state) => state.setDiffHideWhitespace);
   const whitespaceState = hideWhitespace ? t('diffView.whitespace.hidden') : t('diffView.whitespace.shown');
 
@@ -1416,7 +1420,7 @@ const MobileDiffDetail: React.FC<{
               fileDiff={diff.fileDiff}
               language={language}
               fileName={path}
-              renderSideBySide={false}
+              renderSideBySide={renderSideBySide}
               wrapLines={true}
               hideWhitespace={hideWhitespace}
               layout="inline"

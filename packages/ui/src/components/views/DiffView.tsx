@@ -1210,6 +1210,9 @@ export const DiffView: React.FC<DiffViewProps> = ({
     useDiffToolbarFit(toolbarRef);
     const { git, files, sourceControl } = useRuntimeAPIs();
     const rootDirectory = useEffectiveDirectory();
+    React.useLayoutEffect(() => {
+        if (visible) useUIStore.getState().resetGitViewDefaults();
+    }, [visible, rootDirectory]);
     const runtimeKey = useGitStore((state) => state.runtimeKey);
     // Diffs belong to the repository being diffed: when the root is not
     // itself a repository, operate on the resolved nested repository instead.

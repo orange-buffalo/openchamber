@@ -1285,6 +1285,7 @@ interface UIStore {
   addRecentAgent: (agentName: string) => void;
   toggleFavoriteAgent: (agentName: string) => void;
   addRecentEffort: (providerID: string, modelID: string, variant: string | undefined) => void;
+  resetGitViewDefaults: () => void;
   setDiffLayoutPreference: (mode: 'dynamic' | 'inline' | 'side-by-side') => void;
   /** The layout setting for every diff, dropping the per-file choices (the Changes header toggle). */
   setDiffLayoutForAllFiles: (mode: 'inline' | 'side-by-side') => void;
@@ -1491,7 +1492,7 @@ export const useUIStore = create<UIStore>()(
         recentAgents: [],
         favoriteAgents: [],
         recentEfforts: {},
-        diffLayoutPreference: 'inline',
+        diffLayoutPreference: 'side-by-side',
         diffFileLayout: {},
         diffWrapLines: false,
         diffHideWhitespace: false,
@@ -2678,6 +2679,15 @@ export const useUIStore = create<UIStore>()(
           root.style.setProperty('--line-height-normal', (1.5 * lineHeightScale).toFixed(3));
           root.style.setProperty('--line-height-relaxed', (1.625 * lineHeightScale).toFixed(3));
           root.style.setProperty('--line-height-loose', (2 * lineHeightScale).toFixed(3));
+        },
+
+        resetGitViewDefaults: () => {
+          set({
+            gitChangesViewMode: 'tree',
+            diffFileListMode: 'tree',
+            diffLayoutPreference: 'side-by-side',
+            diffFileLayout: {},
+          });
         },
 
         setDiffLayoutPreference: (mode) => {
