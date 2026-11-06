@@ -3,6 +3,8 @@ import { useUIStore } from '@/stores/useUIStore';
 import { isDesktopShell, isVSCodeRuntime } from '@/lib/desktop';
 import { toast } from '@/components/ui';
 import { getRegisteredRuntimeAPIs } from '@/contexts/runtimeAPIRegistry';
+import { useWaitingBlink } from '@/hooks/useDurationTicker';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { getClientPlatform } from '@/lib/platform';
@@ -62,6 +64,8 @@ export const NotificationSettings: React.FC = () => {
   const setNotifyOnSubtasks = useUIStore(state => state.setNotifyOnSubtasks);
   const notifyOnCompletion = useUIStore(state => state.notifyOnCompletion);
   const setNotifyOnCompletion = useUIStore(state => state.setNotifyOnCompletion);
+  const notifyOnPullRequests = useUIStore(state => state.notifyOnPullRequests);
+  const setNotifyOnPullRequests = useUIStore(state => state.setNotifyOnPullRequests);
   const notifyOnError = useUIStore(state => state.notifyOnError);
   const setNotifyOnError = useUIStore(state => state.setNotifyOnError);
   const notifyOnQuestion = useUIStore(state => state.notifyOnQuestion);
@@ -73,6 +77,7 @@ export const NotificationSettings: React.FC = () => {
   const [pushSupported, setPushSupported] = React.useState(false);
   const [pushSubscribed, setPushSubscribed] = React.useState(false);
   const [pushBusy, setPushBusy] = React.useState(false);
+  const pushBusyBlink = useWaitingBlink(pushBusy);
 
   React.useEffect(() => {
     if (!isBrowser) {
@@ -510,7 +515,7 @@ export const NotificationSettings: React.FC = () => {
                 </p>
               )}
               {notificationPermission === 'granted' && !nativeNotificationsEnabled && (
-                <p className="typography-meta text-muted-foreground/70 mt-1">
+                <p className="typography-meta text-muted-foreground mt-1">
                   {t('settings.notifications.page.delivery.permissionGrantedButDisabled')}
                 </p>
               )}
@@ -531,6 +536,15 @@ export const NotificationSettings: React.FC = () => {
                   label={t('settings.notifications.page.events.completionLabel')}
                   ariaLabel={t('settings.notifications.page.events.completionAria')}
                 />
+                {!isVSCode && (
+                  <SettingsCheckboxRow
+                    settingsItem="notifications.pullRequests"
+                    checked={notifyOnPullRequests}
+                    onChange={setNotifyOnPullRequests}
+                    label={t('settings.notifications.pullRequests.label')}
+                    info={t('settings.notifications.pullRequests.info')}
+                  />
+                )}
 
                 <SettingsCheckboxRow
                   checked={notifyOnSubtasks}
@@ -627,7 +641,7 @@ export const NotificationSettings: React.FC = () => {
               ariaLabel={t('settings.notifications.page.push.enableAria')}
               labelAccessory={
                 pushBusy ? (
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current text-muted-foreground animate-busy-pulse" aria-label={t('settings.notifications.page.push.loadingAria')} />
+                  <span className={cn('inline-block h-1.5 w-1.5 rounded-full bg-current text-muted-foreground', pushBusyBlink)} aria-label={t('settings.notifications.page.push.loadingAria')} />
                 ) : null
               }
             />

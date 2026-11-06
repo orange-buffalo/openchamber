@@ -1,23 +1,22 @@
 import * as vscode from 'vscode';
 import { type OpenCodeManager } from './opencode';
 import { handleStandardGitBridgeMessage } from './bridge-git-runtime';
-import { handleSpecialGitBridgeMessage } from './bridge-git-special-runtime';
 import { handleSmallModelBridgeMessage, readOpenCodeSmallModelCatalog } from './bridge-small-model-runtime';
 import { handleFsBridgeMessage } from './bridge-fs-runtime';
 import { handleConfigBridgeMessage } from './bridge-config-runtime';
 import { handleSystemBridgeMessage } from './bridge-system-runtime';
 import { handleProxyBridgeMessage } from './bridge-proxy-runtime';
+import { waitForWorktreeRemoval } from './gitService';
 import { handlePermissionAutoAcceptBridgeMessage } from './bridge-permission-auto-accept-runtime';
-import { createProjectSetupStore, handleProjectSetupBridgeMessage } from './bridge-project-setup-runtime';
+import { handleProjectSetupBridgeMessage } from './bridge-project-setup-runtime';
 import { createSessionStateStore, getOpenChamberDataDir } from './openchamberSessionState';
+import { openCodeTrust } from './opencodeTrust';
 import {
   fetchOpenCodeSkillsFromApi,
   persistSettings,
   readSettings,
-  readMagicPromptOverrides,
-  saveMagicPromptOverride,
-  resetMagicPromptOverride,
-  resetAllMagicPromptOverrides,
+  magicPrompts,
+  projectSetupStore,
 } from './bridge-settings-runtime';
 import { execGit } from './bridge-git-process-runtime';
 import {
@@ -50,6 +49,7 @@ export interface BridgeResponse {
   success: boolean;
   data?: unknown;
   error?: string;
+  code?: string;
 }
 
 export interface BridgeContext {
@@ -58,7 +58,6 @@ export interface BridgeContext {
 }
 
 const CLIENT_RELOAD_DELAY_MS = 800;
-const projectSetupStore = createProjectSetupStore();
 const sessionStateStore = createSessionStateStore({ dataDir: getOpenChamberDataDir() });
 
 
@@ -82,14 +81,6 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
     const standardGitResponse = await handleStandardGitBridgeMessage({ id, type, payload }, ctx);
     if (standardGitResponse) {
       return standardGitResponse;
-    }
-    const specialGitResponse = await handleSpecialGitBridgeMessage(
-      { id, type, payload },
-      ctx,
-      { readSettings, execGit, readPromptOverrides: () => readMagicPromptOverrides().overrides }
-    );
-    if (specialGitResponse) {
-      return specialGitResponse;
     }
     const smallModelResponse = await handleSmallModelBridgeMessage(
       { id, type, payload },
@@ -124,10 +115,7 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
       {
         readSettings,
         persistSettings,
-        readMagicPromptOverrides,
-        saveMagicPromptOverride,
-        resetMagicPromptOverride,
-        resetAllMagicPromptOverrides,
+        handleMagicPromptRequest: magicPrompts.handle,
         fetchOpenCodeSkillsFromApi,
         clientReloadDelayMs: CLIENT_RELOAD_DELAY_MS,
       },
@@ -153,7 +141,9 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
       ctx,
       {
         tryHandleLocalFsProxy,
+        waitForWorktreeRemoval,
         sessionState: sessionStateStore,
+        openCodeTrust,
         buildUnavailableApiResponse,
         sanitizeForwardHeaders,
         collectHeaders,
@@ -170,6 +160,7 @@ export async function handleBridgeMessage(message: BridgeRequest, ctx?: BridgeCo
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    return { id, type, success: false, error: errorMessage };
+    const code = err instanceof Error && 'code' in err ? String(err.code) : undefined;
+    return { id, type, success: false, error: errorMessage, code };
   }
 }

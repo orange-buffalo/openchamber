@@ -125,21 +125,6 @@ const projectSections = [
   },
 ];
 
-const recentItems = [
-  {
-    node: node("ses_oc_1", "Fork build deployment for agents", OPENCHAMBER),
-    projectId: "openchamber",
-    groupDirectory: OPENCHAMBER,
-    secondaryMeta: null,
-  },
-  {
-    node: node("ses_renalo_1", "Renalo releases", RENALO),
-    projectId: "renalo",
-    groupDirectory: RENALO,
-    secondaryMeta: null,
-  },
-];
-
 const EMPTY_STRING_SET: Set<string> = new Set();
 const EMPTY_ORDER_INDEX: Map<string, number> = new Map();
 const noop = () => {};
@@ -150,7 +135,7 @@ export function SidebarProjectsFixture(): React.ReactNode {
     sections: projectSections,
     authoritativeSections: projectSections,
     chatGroup: null,
-    workItems: recentItems,
+    sessionOwnerById: new Map(),
     foldersMap: {},
     groupSearchDataByGroup: new WeakMap(),
     normalizedQuery: '',
@@ -221,7 +206,6 @@ export function SidebarProjectsFixture(): React.ReactNode {
             mobileVariant: false,
             alwaysShowActions: false,
             activeProjectId: "openchamber",
-            notifyOnSubtasks: false,
             expandedParents: EMPTY_STRING_SET,
             editTitle: "",
             folderRename: null,
@@ -239,7 +223,6 @@ export function SidebarProjectsFixture(): React.ReactNode {
           mobileVariant: false,
           alwaysShowActions: false,
           projectSortOrder: "manual",
-          worktreeSortOrder: "manual",
         }}
         actions={{
           group: {
@@ -259,7 +242,6 @@ export function SidebarProjectsFixture(): React.ReactNode {
           openProjectEditDialog: noop,
           removeProject: noop,
           reorderProjects: noop,
-          setGroupOrderByProject: noop,
           setSingleProjectId: noop,
         }}
       />

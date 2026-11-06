@@ -1,10 +1,12 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 import {
   formatShortcutForDisplay,
   getEffectiveShortcutCombo,
 } from '@/lib/shortcuts';
 import { useUIStore } from '@/stores/useUIStore';
+import { useConfigStore } from '@/stores/useConfigStore';
 import { useEnterpriseMode, useJevBlockedByEnterprise } from '@/stores/useEnterprisePolicyStore';
 import { useSettingsDirectory } from '@/hooks/useSettingsDirectory';
 import { useProjectsStore } from '@/stores/useProjectsStore';
@@ -13,6 +15,7 @@ import { useCommandsStore } from '@/stores/useCommandsStore';
 import { useMcpConfigStore } from '@/stores/useMcpConfigStore';
 import { useSnippetsStore } from '@/stores/useSnippetsStore';
 import { projectSettingsTabForSearchTarget, useProjectSettingsTabStore } from '@/components/sections/projects/projectSettingsTabs';
+import { chatSettingsTabForSearchTarget, useChatSettingsTabStore } from '@/components/sections/openchamber/chatSettingsTabs';
 import { useSkillsStore } from '@/stores/useSkillsStore';
 import { useSkillsCatalogStore } from '@/stores/useSkillsCatalogStore';
 import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
@@ -50,12 +53,14 @@ import { SettingsPageLayout } from '@/components/sections/shared/SettingsPageLay
 import { SettingsScrollbarTopClearanceContext } from '@/components/sections/shared/settingsScrollbarClearance';
 import {
   SETTINGS_SECTION_TITLE_CLASS,
+  SettingsBadge,
 } from '@/components/sections/shared/SettingsSection';
 import { useDeviceInfo } from '@/lib/device';
 import { isDesktopLocalOriginActive, isDesktopShell, isVSCodeRuntime, isWebRuntime } from '@/lib/desktop';
 import { useI18n } from '@/lib/i18n';
 import { Icon } from "@/components/icon/Icon";
 import { McpIcon } from '@/components/icons/McpIcon';
+import { settingsPageTitleKey } from '@/lib/settings/pageTitle';
 import {
   SETTINGS_PAGE_METADATA,
   getSettingsNavIcon,
@@ -66,12 +71,21 @@ import {
   type SettingsPageMeta,
 } from '@/lib/settings/metadata';
 import { buildSettingsSearchResults, type SettingsSearchResult } from '@/lib/settings/search';
+import { useTrackerDescriptors } from '@/lib/trackers/registry';
+import { useSourceControlProviders } from '@/lib/source-control/providers/registry';
+import { acknowledgeNewSettingPage, getNewSettingPages } from '@/lib/settings/newSettings';
 
 // UI Kit: fixed split-page sidebar width
 const SETTINGS_SPLIT_SIDEBAR_WIDTH = 280;
 // The desktop close button: top-1 offset plus its h-7 height.
 const SETTINGS_CLOSE_BUTTON_CLEARANCE = 32;
 const SETTINGS_DETAIL_HISTORY_KEY = '__openchamberSettingsDetail';
+/** The Chat page shows one tab at a time: open the one that holds the item. */
+const openChatSettingsTabFor = (itemId: string): void => {
+  const chatTab = chatSettingsTabForSearchTarget(itemId);
+  if (chatTab) useChatSettingsTabStore.getState().setTab(chatTab);
+};
+
 /** How long (in frames, ~0.5 s) a search result or a link waits for its item to render. */
 const PENDING_ITEM_MAX_FRAMES = 30;
 
@@ -191,6 +205,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
   const openSettingsShortcutOverride = useUIStore((state) => state.shortcutOverrides.open_settings);
   const settingsSlug = resolveSettingsSlug(settingsPageRaw);
 
+  const [, refreshNewSettings] = React.useReducer((revision: number) => revision + 1, 0);
   const [mobileStage, setMobileStage] = React.useState<MobileStage>(initialMobileStage);
   // Seed with the mount-time slug when opening at the nav stage: the slug
   // persists across opens, and the deep-link auto-jump below must react only
@@ -258,6 +273,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       .slice()
       .sort((a, b) => (rank.get(a.slug) ?? 999) - (rank.get(b.slug) ?? 999));
   }, [visiblePages]);
+
+  const voiceSettings = useConfigStore(useShallow((state) => ({
+    showMessageTTSButtons: state.showMessageTTSButtons,
+    autoReadAloudEnabled: state.autoReadAloudEnabled,
+    voiceProvider: state.voiceProvider,
+    dictationEnabled: state.dictationEnabled,
+    sttProvider: state.sttProvider,
+  })));
+  const searchAvailabilityCtx = React.useMemo(
+    () => ({ ...runtimeCtx, isDesktopLocalOrigin, isMac, isWindows, isLinux, voiceSettings }),
+    [runtimeCtx, isDesktopLocalOrigin, isMac, isWindows, isLinux, voiceSettings],
+  );
+  const newSettingPages = getNewSettingPages(searchAvailabilityCtx);
+  const hasNewSettings = newSettingPages.some((page) => visiblePages.some((visible) => visible.slug === page));
+
+  React.useEffect(() => {
+    if (isMobile && mobileStage === 'nav') return;
+    if (!newSettingPages.includes(settingsSlug)) return;
+    if (!visiblePages.some((visible) => visible.slug === settingsSlug)) return;
+    acknowledgeNewSettingPage(settingsSlug, searchAvailabilityCtx);
+    refreshNewSettings();
+  }, [isMobile, mobileStage, newSettingPages, settingsSlug, visiblePages, searchAvailabilityCtx]);
 
   const activeProjectId = useProjectsStore((state) => state.activeProjectId);
   const settingsDirectory = useSettingsDirectory();
@@ -327,79 +364,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
     'isolated-spaces': 'spaces',
   }), []);
 
-  const getPageTitle = React.useCallback((slug: SettingsPageSlug): string => {
-    switch (slug) {
-      case 'general':
-        return t('settings.page.general.title');
-      case 'projects':
-        return t('settings.page.projects.title');
-      case 'remote-instances':
-        return t('settings.page.remoteInstances.title');
-      case 'providers':
-        return t('settings.page.providers.title');
-      case 'web-search':
-        return t('settings.page.webSearch.title');
-      case 'usage':
-        return t('settings.page.usage.title');
-      case 'agents':
-        return t('settings.page.agents.title');
-      case 'behavior':
-        return t('settings.page.behavior.title');
-      case 'commands':
-        return t('settings.page.commands.title');
-      case 'mcp':
-        return t('settings.page.mcp.title');
-      case 'plugins':
-        return t('settings.page.plugins.title');
-      case 'skills.installed':
-        return t('settings.page.skills.title');
-      case 'skills.catalog':
-        return t('settings.page.skillsCatalog.title');
-      case 'git':
-        return t('settings.page.git.title');
-      case 'integrations':
-        return t('settings.page.integrations.title');
-      case 'extensions':
-        return t('settings.page.extensions.title');
-      case 'appearance':
-        return t('settings.page.appearance.title');
-      case 'chat':
-        return t('settings.page.chat.title');
-      case 'shortcuts':
-        return t('settings.page.shortcuts.title');
-      case 'sessions':
-        return t('settings.page.sessions.title');
-      case 'routing':
-        return t('settings.page.routing.title');
-      case 'magic-prompts':
-        return t('settings.page.magicPrompts.title');
-      case 'snippets':
-        return t('settings.page.snippets.title');
-      case 'notifications':
-        return t('settings.page.notifications.title');
-      case 'voice':
-        return t('settings.page.voice.title');
-      case 'tunnel':
-        return t('settings.page.tunnel.title');
-      case 'isolated-spaces':
-        return t('settings.openchamber.spaces.title');
-      case 'about':
-        return t('settings.page.about.title');
-      case 'home':
-      default:
-        return t('settings.view.home.title');
-    }
-  }, [t]);
+  const getPageTitle = React.useCallback((slug: SettingsPageSlug): string => t(settingsPageTitleKey(slug)), [t]);
 
+  const trackers = useTrackerDescriptors();
+  const sourceControlProviders = useSourceControlProviders();
   const settingsSearchResults = React.useMemo(() => {
     return buildSettingsSearchResults({
       query: settingsSearchQuery,
-      runtimeCtx: { ...runtimeCtx, isDesktopLocalOrigin, isMac, isWindows, isLinux },
+      runtimeCtx: searchAvailabilityCtx,
       visiblePageSlugs,
       t,
       getPageTitle,
+      trackers,
+      sourceControlProviders,
     });
-  }, [getPageTitle, isDesktopLocalOrigin, isMac, isWindows, isLinux, runtimeCtx, settingsSearchQuery, t, visiblePageSlugs]);
+  }, [getPageTitle, searchAvailabilityCtx, settingsSearchQuery, sourceControlProviders, t, trackers, visiblePageSlugs]);
 
   const prepareSettingsSearchTarget = React.useCallback((result: SettingsSearchResult): string => {
     if (result.id.startsWith('agents.')) {
@@ -475,10 +454,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       return 'plugins.spec';
     }
 
+    // The Git identity picker lives in the Add extension dialog; the add card opens it.
+    if (result.id === 'extensions.gitIdentity') {
+      return 'extensions.add';
+    }
+
     const projectTab = projectSettingsTabForSearchTarget(result.id);
     if (projectTab) {
       useProjectSettingsTabStore.getState().setTab(projectTab);
     }
+
+    openChatSettingsTabFor(result.id);
 
     return result.id;
   }, []);
@@ -580,6 +566,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       return;
     }
     useUIStore.getState().clearSettingsJumpRequest();
+    if (settingsJumpRequest.itemId) openChatSettingsTabFor(settingsJumpRequest.itemId);
     setPendingSearchItemId(settingsJumpRequest.itemId);
     openPage(resolveSettingsSlug(settingsJumpRequest.page));
     if (isMobile) {
@@ -874,7 +861,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
     return (
       <div className="flex h-full flex-col overflow-hidden">
         <div className="px-4 pt-3">
-          <div className="oc-surface-elevated flex h-10 items-center gap-1.5 rounded-md border border-border bg-surface-elevated/70 px-2 text-muted-foreground focus-within:ring-2 focus-within:ring-ring sm:h-8">
+          <div className="oc-surface-elevated oc-raised oc-field flex h-10 items-center gap-1.5 rounded-md bg-surface-elevated/70 px-2 text-muted-foreground sm:h-8">
             <Icon name="search" className="h-4 w-4 shrink-0" />
             <input
               value={settingsSearchQuery}
@@ -882,7 +869,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
               onKeyDown={handleSettingsSearchKeyDown}
               placeholder={t('settings.view.search.placeholder')}
               aria-label={t('settings.view.search.aria')}
-              className="typography-ui min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/70"
+              // The Settings window focuses this field when it opens.
+              data-settings-search=""
+              className="typography-ui min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
             />
             {hasSearchQuery && (
               <button
@@ -905,7 +894,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
                 let resultIndex = 0;
                 return groupedSettingsSearchResults.map((group) => (
                   <div key={group.page} className="space-y-0.5">
-                    <div className="px-2 pb-0.5 pt-2 typography-micro font-medium text-muted-foreground/70">
+                    <div className="px-2 pb-0.5 pt-2 typography-micro font-medium text-muted-foreground">
                       {group.pageTitle}
                     </div>
                     {group.results.map((result) => {
@@ -933,7 +922,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
                         >
                           <span className="typography-ui-label text-foreground truncate">{result.title}</span>
                           {hasDescription && (
-                            <span className="typography-micro text-muted-foreground/70 line-clamp-2">{result.description}</span>
+                            <span className="typography-micro text-muted-foreground line-clamp-2">{result.description}</span>
                           )}
                         </button>
                       );
@@ -999,9 +988,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
                             <span className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden transition-opacity duration-150 opacity-100">
                               <span className="typography-ui-label font-normal truncate">{getPageTitle(page.slug)}</span>
                               {page.slug === 'tunnel' && (
-                                <span className="shrink-0 typography-micro px-1 rounded leading-none pb-px text-[var(--status-warning)] bg-[var(--status-warning)]/10">
-                                  {t('settings.view.badge.beta')}
-                                </span>
+                                <SettingsBadge>{t('settings.view.badge.beta')}</SettingsBadge>
+                              )}
+                              {newSettingPages.includes(page.slug) && (
+                                <SettingsBadge>{t('settings.view.badge.new')}</SettingsBadge>
                               )}
                             </span>
                           </button>
@@ -1121,10 +1111,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
             </button>
           ) : null}
 
-          <div className="min-w-0 flex-1 px-2 typography-ui-label font-medium text-foreground truncate">
-            {mobileStage === 'nav'
-              ? t('settings.view.home.title')
-              : (activePageMeta ? getPageTitle(activePageMeta.slug) : t('settings.view.home.title'))}
+          <div className="min-w-0 flex-1 px-2 typography-ui-label font-medium text-foreground truncate flex items-center gap-2">
+            <span className="truncate">
+              {mobileStage === 'nav'
+                ? t('settings.view.home.title')
+                : (activePageMeta ? getPageTitle(activePageMeta.slug) : t('settings.view.home.title'))}
+            </span>
+            {(mobileStage === 'nav' && hasNewSettings) && (
+              <SettingsBadge>{t('settings.view.badge.new')}</SettingsBadge>
+            )}
           </div>
 
           {onClose && (

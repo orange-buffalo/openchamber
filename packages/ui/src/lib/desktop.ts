@@ -18,8 +18,14 @@ export type DesktopWindowControlsStyle = 'classic' | 'traffic-lights';
 // so the many existing importers keep their path.
 export type { DesktopSettings } from '@/lib/settings/registry';
 
+type DesktopClipboardBridge = {
+  readSelection?: () => Promise<string>;
+  writeSelection?: (text: string) => Promise<boolean>;
+};
+
 type DesktopBridgeGlobal = {
   pickThemeFile?: () => Promise<unknown>;
+  clipboard?: DesktopClipboardBridge;
   invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
   openDialog?: (options: Record<string, unknown>) => Promise<unknown>;
   grantFileAccess?: (path: string) => Promise<unknown>;
@@ -106,6 +112,21 @@ export const hasDesktopInvoke = (): boolean => {
 
 export const canUseElectronDesktopIPC = (): boolean => isElectronShell() && hasDesktopInvoke();
 
+/** Linux's PRIMARY buffer is reachable only through the local Electron bridge. */
+export const createDesktopClipboardAPI = (): RuntimeAPIs['clipboard'] => {
+  const bridge = getDesktopBridge()?.clipboard;
+  if (!bridge?.readSelection || !bridge.writeSelection) return undefined;
+  const { readSelection, writeSelection } = bridge;
+  return {
+    selection: {
+      readText: async () => z.string().parse(await readSelection()),
+      writeText: async (text) => {
+        z.literal(true).parse(await writeSelection(text));
+      },
+    },
+  };
+};
+
 export const createDesktopThemeFileAPI = (): RuntimeAPIs['themeFiles'] => {
   // Preload exposes this capability only to trusted local UI pages. Unlike the
   // active API endpoint, that page identity stays local during remote connections.
@@ -124,6 +145,12 @@ export const invokeDesktop = async <T = unknown>(command: string, args?: Record<
   const bridge = getDesktopBridge();
   if (typeof bridge?.invoke !== 'function') return null;
   return bridge.invoke(command, args ?? {}) as Promise<T>;
+};
+
+/** Removes the session's delivered native notifications from Notification Center (macOS only). */
+export const clearDesktopSessionNotifications = (sessionId: string): void => {
+  if (getElectronPlatform() !== 'darwin' || !canUseElectronDesktopIPC()) return;
+  void invokeDesktop('desktop_clear_session_notifications', { sessionId }).catch(() => {});
 };
 
 /**
@@ -458,6 +485,13 @@ export const isDesktopShell = (): boolean => {
   return isElectronShell();
 };
 
+/** Native visibility includes minimized and tray-hidden windows, independently of focus. */
+export const getDesktopWindowVisibility = async (): Promise<boolean | null> => {
+  if (!isDesktopShell()) return null;
+  const parsed = z.object({ visible: z.boolean() }).safeParse(await invokeDesktop('desktop_get_current_window_state'));
+  return parsed.success ? parsed.data.visible : null;
+};
+
 /**
  * Raises the desktop window.
  *
@@ -476,15 +510,23 @@ export const focusDesktopWindow = async (): Promise<boolean> => {
 };
 
 /**
- * Opens a session owned by another instance ('local' or 'host:<id>') in a
- * window for that instance. Valid from any app window, including one that
- * currently shows a remote instance — the main process gates the command
- * by sender. Returns false when the desktop bridge is not available, so the
- * caller can fall back to opening it on the current one.
+ * A notification click or a session link can name the instance that owns the
+ * session ('local' or 'host:<id>'). When this window shows another instance,
+ * opens the session, and the message when one is named, in a window for the
+ * owning one. Valid from any app window, including one that currently shows
+ * a remote instance; the main process gates the command by sender. Returns
+ * false when the session belongs here or the desktop bridge is not available,
+ * so the caller opens it in this window.
  */
-export const openHostSession = (runtimeKey: string, sessionId: string): boolean => {
+export const openSessionInOwningHostWindow = (
+  sessionId: string,
+  runtimeKey: string | null,
+  messageId: string | null = null,
+): boolean => {
+  if (!runtimeKey || runtimeKey === getRuntimeKey()) return false;
   if (!canUseElectronDesktopIPC()) return false;
-  void invokeDesktop<{ opened: boolean }>('desktop_open_host_session', { runtimeKey, sessionId })
+  const args = messageId ? { runtimeKey, sessionId, messageId } : { runtimeKey, sessionId };
+  void invokeDesktop<{ opened: boolean }>('desktop_open_host_session', args)
     .catch((error) => {
       console.warn('[desktop] failed to open host session', error);
     });
@@ -498,14 +540,17 @@ export const canRequestNativeDirectoryAccess = (): boolean => (
 const pendingSessionLinksSchema = z.array(z.object({
   sessionId: z.string().min(1),
   messageId: z.string().min(1).optional(),
+  runtimeKey: z.string().min(1).optional(),
+  requireKnownSession: z.boolean().optional(),
 }));
 
-type PendingDesktopSessionLink = { sessionId: string; messageId: string | null };
+type PendingDesktopSessionLink = { sessionId: string; messageId: string | null; runtimeKey: string | null; requireKnownSession: boolean };
 
 /**
  * Session links (`openchamber://session/...`) that reached the desktop app
  * before this window could listen for them — the link that launched the app,
- * or "open in main window" from a closed main window. Taking them removes
+ * or "open in main window" from a closed main window. A link that names its
+ * host (`?host=<id>`) carries that host's runtime key. Taking them removes
  * them; outside the desktop local page there are none.
  */
 export const takePendingDesktopSessionLinks = async (): Promise<PendingDesktopSessionLink[]> => {
@@ -513,7 +558,12 @@ export const takePendingDesktopSessionLinks = async (): Promise<PendingDesktopSe
   try {
     const parsed = pendingSessionLinksSchema.safeParse(await invokeDesktop('desktop_take_pending_session_links'));
     return parsed.success
-      ? parsed.data.map((link) => ({ sessionId: link.sessionId, messageId: link.messageId ?? null }))
+      ? parsed.data.map((link) => ({
+        sessionId: link.sessionId,
+        messageId: link.messageId ?? null,
+        runtimeKey: link.runtimeKey ?? null,
+        requireKnownSession: link.requireKnownSession === true,
+      }))
       : [];
   } catch (error) {
     console.warn('Failed to read pending session links', error);

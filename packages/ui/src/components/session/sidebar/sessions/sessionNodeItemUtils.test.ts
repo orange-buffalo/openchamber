@@ -4,7 +4,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Session } from '@/lib/opencode/model';
 import type { WorktreeMetadata } from '@/types/worktree';
 import { getRuntimeKey } from '@/lib/runtime-switch';
-import { getPinnedSessionKey } from '@/stores/useSessionPinnedStore';
+import { getPinnedSessionKey } from '@/lib/sessionPins';
 import {
   computeNodeStructureKey,
   canShowSessionWorktreeMenu,
@@ -67,6 +67,21 @@ describe('selectBlockingBadgeSessionScopes', () => {
 
     expect(selectBlockingBadgeSessionScopes(root, true, '/repo')).toEqual([
       { directory: '/repo', sessionIDs: ['root'] },
+    ]);
+  });
+
+  test('an expanded row still counts the workflow agents under it, which have no rows', () => {
+    const agentChild = withDirectory({ session: session('agent-child', 'Agent child'), children: [], worktree: null }, '/repo');
+    const agent = withDirectory({
+      session: { ...session('agent', 'Agent'), metadata: { openchamber: { kind: 'workflow-agent' } } },
+      children: [agentChild],
+      worktree: null,
+    }, '/repo');
+    const child = withDirectory({ session: session('child', 'Child'), children: [], worktree: null }, '/repo');
+    const root = withDirectory({ session: session('root', 'Root'), children: [child, agent], worktree: null }, '/repo');
+
+    expect(selectBlockingBadgeSessionScopes(root, true, '/repo')).toEqual([
+      { directory: '/repo', sessionIDs: ['root', 'agent', 'agent-child'] },
     ]);
   });
 

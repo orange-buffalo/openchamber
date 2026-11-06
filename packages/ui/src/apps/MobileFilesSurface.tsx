@@ -12,13 +12,15 @@ import {
 
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { Input } from '@/components/ui/input';
-import { ScrollShadow } from '@/components/ui/ScrollShadow';
 import { FileTypeIcon } from '@/components/icons/FileTypeIcon';
 import { Icon } from '@/components/icon/Icon';
 import { useFileTreeUpload } from '@/components/views/files/useFileTreeUpload';
 import { AUTO_RELIST_MAX_ENTRIES, useFileTreeChanges, type FileTreeChangeBatch } from '@/components/views/files/useFileTreeChanges';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
+import { useDraftSpaceTarget } from '@/lib/spaces/useDraftSpaceTarget';
+import { panelContentDirectory } from '@/lib/spaces/space-creation-requests';
+import { SpacePreparing } from '@/components/session/spaces/SpacePreparing';
 import { useI18n } from '@/lib/i18n';
 import { useFilesViewShowGitignored } from '@/lib/filesViewShowGitignored';
 import type { FileListEntry, FileSearchResult } from '@/lib/api/types';
@@ -26,6 +28,7 @@ import { useFilesViewTabsStore } from '@/stores/useFilesViewTabsStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/lib/utils';
 import { normalizePath as normalizePathImpl } from '@/lib/pathNormalization';
+import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 
 // The full desktop file editor, loaded on demand — it's a heavy chunk and only
 // needed once a file is actually opened.
@@ -81,7 +84,10 @@ type MobileFilesSurfaceProps = {
 };
 
 export const MobileFilesSurface: React.FC<MobileFilesSurfaceProps> = ({ onClose, visible = true }) => {
-  const root = normalizePath(useEffectiveDirectory() ?? null);
+  // A draft waiting for a new space lists the space, and nothing of this computer's until it runs.
+  const draftSpace = useDraftSpaceTarget();
+  const root = normalizePath(panelContentDirectory(draftSpace, useEffectiveDirectory()));
+  if (draftSpace?.kind === 'preparing') return <SpacePreparing />;
   return <MobileFilesSurfaceForRoot key={root} root={root} onClose={onClose} visible={visible} />;
 };
 
@@ -220,7 +226,9 @@ const MobileFilesSurfaceForRoot: React.FC<MobileFilesSurfaceProps & { root: stri
     const target = normalizePath(pendingFileNavigation?.path ?? pendingFileFocusPath ?? '');
     if (!target || !root) return;
     setSelectedPath(root, target, { allowOutsideRoot: true });
-    setRoute({ type: 'file', path: target, returnDirectory: root });
+    // From a file already open (the image preview's arrows), Back still leads
+    // to the folder the user was browsing.
+    setRoute((current) => ({ type: 'file', path: target, returnDirectory: current.type === 'file' ? current.returnDirectory : root }));
     if (pendingFileFocusPath) useUIStore.getState().setPendingFileFocusPath(null);
   }, [pendingFileFocusPath, pendingFileNavigation, root, setSelectedPath]);
 
@@ -234,7 +242,7 @@ const MobileFilesSurfaceForRoot: React.FC<MobileFilesSurfaceProps & { root: stri
     // nudge, touch menus); this host only adds the back row.
     return (
       <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-        <header className="flex h-[var(--oc-header-height,56px)] shrink-0 items-center gap-2 border-b border-border/70 px-3 text-foreground">
+        <header className="flex h-[var(--oc-header-height,56px)] shrink-0 items-center gap-2 border-b border-edge px-3 text-foreground">
           <button
             type="button"
             className="-ms-1 flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-interactive-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -333,15 +341,15 @@ const MobileFilesSurfaceForRoot: React.FC<MobileFilesSurfaceProps & { root: stri
         </div>
       </div>
 
-      <ScrollShadow className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+      <ScrollableOverlay outerClassName="min-h-0 flex-1" className="px-4 pb-3" useScrollShadow disableHorizontal>
         {directoryError ? (
           <MobileFilesState message={directoryError} />
         ) : query.trim() ? (
-          <MobileSearchResults results={visibleSearchResults} isSearching={isSearching} onOpenFile={openFile} />
+          <MobileSearchResults root={root} results={visibleSearchResults} isSearching={isSearching} onOpenFile={openFile} />
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-elevated)]">
+          <div className="overflow-hidden rounded-2xl border border-edge bg-[var(--surface-elevated)]">
             {entries.length === 0 && !isLoadingDirectory ? (
-              <div className="px-4 py-8 text-center typography-body text-muted-foreground">{t('mobile.files.empty.directory')}</div>
+              <div className="px-4 py-8 text-center typography-ui-label text-muted-foreground">{t('mobile.files.empty.directory')}</div>
             ) : null}
             {entries.map((entry) => (
               <MobileFileRow
@@ -355,7 +363,7 @@ const MobileFilesSurfaceForRoot: React.FC<MobileFilesSurfaceProps & { root: stri
             ))}
           </div>
         )}
-      </ScrollShadow>
+      </ScrollableOverlay>
     </div>
   );
 };
@@ -369,7 +377,7 @@ const MobileFileRow: React.FC<{
 }> = ({ name, path, directory, meta, onClick }) => (
   <button
     type="button"
-    className="flex min-h-14 w-full items-center gap-3 border-b border-border/70 px-3 py-2.5 text-start transition-colors last:border-b-0 hover:bg-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    className="flex min-h-14 w-full items-center gap-3 border-b border-edge px-3 py-2.5 text-start transition-colors last:border-b-0 hover:bg-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     onClick={onClick}
     style={{ touchAction: 'manipulation' }}
   >
@@ -380,21 +388,21 @@ const MobileFileRow: React.FC<{
     )}
     <span className="block min-w-0 flex-1 truncate typography-ui-label text-foreground">{name}</span>
     {meta ? <span className="shrink-0 typography-micro text-muted-foreground">{meta}</span> : null}
-    {directory ? <RiArrowRightSLine className="size-4 shrink-0 text-muted-foreground/60" /> : null}
+    {directory ? <RiArrowRightSLine className="size-4 shrink-0 text-muted-foreground" /> : null}
   </button>
 );
 
 const MobileSearchResults: React.FC<{
+  root: string;
   results: FileSearchResult[];
   isSearching: boolean;
   onOpenFile: (path: string) => void;
-}> = ({ results, isSearching, onOpenFile }) => {
+}> = ({ root, results, isSearching, onOpenFile }) => {
   const { t } = useI18n();
-  const root = normalizePath(useEffectiveDirectory() ?? null);
   if (isSearching) return <MobileFilesState loading message={t('common.loading')} />;
   if (results.length === 0) return <MobileFilesState message={t('mobile.files.search.empty')} />;
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-elevated)]">
+    <div className="overflow-hidden rounded-2xl border border-edge bg-[var(--surface-elevated)]">
       {results.map((result) => (
         <MobileFileRow
           key={result.path}

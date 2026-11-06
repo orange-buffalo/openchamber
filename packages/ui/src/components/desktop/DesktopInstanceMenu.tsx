@@ -11,6 +11,7 @@ import { useKeybinds } from '@/hooks/useKeybind';
 import { isDesktopLocalOriginActive, isDesktopShell } from '@/lib/desktop';
 import { desktopHostsGet, redactSensitiveUrl } from '@/lib/desktopHosts';
 import {
+  getLocalDesktopOrigin,
   LOCAL_HOST_ID,
   resolveCurrentDesktopHost,
   withLocalDesktopHost,
@@ -42,26 +43,25 @@ function DesktopInstanceMenuContent({ className }: Props): React.ReactNode {
   const [open, setOpen] = React.useState(false);
   const [currentInstanceLabel, setCurrentInstanceLabel] = React.useState('Local');
   const refreshCurrentInstanceLabel = React.useCallback(async () => {
-    try {
-      if (isDesktopLocalOriginActive()) {
-        setCurrentInstanceLabel('Local');
-        return;
-      }
-
-      // Same resolution the host switcher's own header uses, so the button and
-      // the panel it opens can never disagree about which instance this is.
-      const cfg = await desktopHostsGet();
-      const resolved = resolveCurrentDesktopHost(withLocalDesktopHost(cfg.hosts, cfg.localOrigin));
-
-      if (resolved.id === LOCAL_HOST_ID) {
-        setCurrentInstanceLabel('Local');
-        return;
-      }
-
-      setCurrentInstanceLabel(redactSensitiveUrl(resolved.label.trim() || 'Instance'));
-    } catch {
+    if (isDesktopLocalOriginActive()) {
       setCurrentInstanceLabel('Local');
+      return;
     }
+
+    // Same resolution the host switcher's own header uses, so the button and
+    // the panel it opens can never disagree about which instance this is.
+    // Without the saved instances the window's own runtime still names it.
+    const hosts = await desktopHostsGet()
+      .then((cfg) => withLocalDesktopHost(cfg.hosts, cfg.localOrigin))
+      .catch(() => withLocalDesktopHost([], getLocalDesktopOrigin()));
+    const resolved = resolveCurrentDesktopHost(hosts);
+
+    if (resolved.id === LOCAL_HOST_ID) {
+      setCurrentInstanceLabel('Local');
+      return;
+    }
+
+    setCurrentInstanceLabel(redactSensitiveUrl(resolved.label.trim() || 'Instance'));
   }, []);
 
   React.useEffect(() => {

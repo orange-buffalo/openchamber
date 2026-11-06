@@ -9,9 +9,15 @@ Update this file in the same commit as the change it describes.
 
 ## Stable upstream sync
 
-Integrated upstream v2.3.3. Preserve the fork's removed self-update and usage
+Integrated upstream v2.6.1. Preserve the fork's removed self-update and usage
 reporting flows, automatic usage-limit retry, and release artifact workflows.
 New upstream tests for the removed update store are intentionally excluded.
+The v2.6.1 sync also removes update-channel settings and telemetry from the
+relocated General settings. Keep upstream's failover, review, and workflow
+runtimes alongside the fork's retry scheduler. Preserve combined uncommitted
+comparisons in the new batch diff API.
+Search uses the same combined comparison as the viewer. Correct the upstream
+provider-descriptor test expectation for its new review-draft defaults.
 The v2.3.2 sync also excludes remote-host and Linux package self-update helpers.
 Keep the new desktop instance switcher without its update controls. Arabic and
 Hebrew include the fork's retry messages, and sidebar customizations use logical
@@ -33,7 +39,8 @@ The Uncommitted scope includes staged, unstaged, and untracked files. Compare
 HEAD with current files regardless of which file opened the panel or whether
 context is expanded. Staged remains a separate index comparison. Combined diffs
 do not offer hunk mutations, whose patches require an index-relative comparison.
-Web, desktop, and mobile use the server; VS Code uses its Git bridge.
+Web, desktop, and mobile use the server. Upstream v2.6.1 no longer exposes
+the Changes diff API through the VS Code bridge; native editor diffs are unchanged.
 
 The upstream option-like-remote test explicitly creates its remote HEAD fixture,
 matching the local symbolic-ref default-branch reader. Its duplicate `commit`

@@ -1,4 +1,5 @@
 import { publicEnterprisePolicy } from '../enterprise-mode.js';
+import { withUserEnv } from '../injected-env.js';
 
 export const registerOpenChamberRoutes = (app, dependencies) => {
   const {

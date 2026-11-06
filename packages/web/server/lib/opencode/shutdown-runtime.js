@@ -12,9 +12,14 @@ export const createGracefulShutdownRuntime = (dependencies) => {
     sessionWorkRuntime,
     sessionGoalRuntime,
     contextObligatoryRuntime,
+    sessionWarmingRuntime,
+    autoReviewRuntime,
+    prWatchRuntime,
+    mergeFollowRuntime,
     messageQueueRuntime,
     usageLimitRetryRuntime,
     dispatchResultsRuntime,
+    workflowRuntime = null,
     messageSearchRuntime,
     scheduledTasksRuntime,
     getHealthCheckInterval,
@@ -37,12 +42,14 @@ export const createGracefulShutdownRuntime = (dependencies) => {
     tunnelAuthController,
     beginGuestServiceShutdown,
     stopAllGuestServices,
+    extensionSessionEvents,
     getGuestSurfaceRuntime,
     getRealtimeProxyRuntime,
     getDictationRuntime,
     getRelayService,
     getRelayReconcileTimer,
     getSpacesHost = () => null,
+    stopFolderWatches = () => {},
   } = dependencies;
 
   let shutdownPromise = null;
@@ -69,6 +76,10 @@ export const createGracefulShutdownRuntime = (dependencies) => {
 
     setIsShuttingDown(true);
     beginGuestServiceShutdown();
+    // Admission to guest services closed above; stop the session-event
+    // subscriber in the same tick, so no event reaches a service's refusal
+    // ("the host is shutting down") and reads as a broken service entry.
+    extensionSessionEvents?.stop?.();
     syncToHmrState();
     console.log('Starting graceful shutdown...');
     const exitProcess = typeof options.exitProcess === 'boolean' ? options.exitProcess : getExitOnShutdown();
@@ -83,15 +94,21 @@ export const createGracefulShutdownRuntime = (dependencies) => {
       () => getSpacesHost()?.close(),
       () => getRelayService()?.stop(),
       () => getDictationRuntime()?.stop(),
+      stopFolderWatches,
       () => openCodeWatcherRuntime.stop(),
       () => sessionRuntime.dispose(),
       () => sessionAssistRuntime?.stop?.(),
       () => sessionWorkRuntime?.stop?.(),
       () => sessionGoalRuntime?.stop?.(),
       () => contextObligatoryRuntime?.stop?.(),
+      () => sessionWarmingRuntime?.stop?.(),
+      () => autoReviewRuntime?.stop?.(),
+      () => prWatchRuntime?.stop?.(),
+      () => mergeFollowRuntime?.stop?.(),
       () => messageQueueRuntime?.stop?.(),
       () => usageLimitRetryRuntime?.stop?.(),
       () => dispatchResultsRuntime?.stop?.(),
+      () => workflowRuntime?.shutdown(),
       () => messageSearchRuntime?.stop?.(),
       () => scheduledTasksRuntime?.stop?.(),
       stopAllGuestServices,
