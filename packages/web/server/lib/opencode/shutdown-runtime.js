@@ -42,6 +42,7 @@ export const createGracefulShutdownRuntime = (dependencies) => {
     tunnelAuthController,
     beginGuestServiceShutdown,
     stopAllGuestServices,
+    extensionServiceLifetime,
     extensionSessionEvents,
     getGuestSurfaceRuntime,
     getRealtimeProxyRuntime,
@@ -80,6 +81,7 @@ export const createGracefulShutdownRuntime = (dependencies) => {
     // subscriber in the same tick, so no event reaches a service's refusal
     // ("the host is shutting down") and reads as a broken service entry.
     extensionSessionEvents?.stop?.();
+    extensionServiceLifetime?.stop?.();
     syncToHmrState();
     console.log('Starting graceful shutdown...');
     const exitProcess = typeof options.exitProcess === 'boolean' ? options.exitProcess : getExitOnShutdown();

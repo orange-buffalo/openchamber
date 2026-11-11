@@ -26,10 +26,12 @@ import { RunAutoFusion } from '@/lib/multirun/autoFusion';
 import { useUIStore } from '@/stores/useUIStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSpacesStore } from '@/lib/spaces/spaces-store';
+import { useGuestUpdateNotice } from '@/hooks/useGuestUpdateNotice';
 import { useTerminalSessionKeepalive } from '@/hooks/useTerminalSessionKeepalive';
 import { useDeviceInfo } from '@/lib/device';
 import { cn } from '@/lib/utils';
 import { useOnDemandComponent } from '@/hooks/useOnDemandComponent';
+import { usePaletteShortcuts } from '@/hooks/usePaletteShortcuts';
 import { useSessionListSync } from '@/components/session/sidebar/list/useSessionListSync';
 import { setChatCovered } from './rightSlot';
 
@@ -105,6 +107,7 @@ LeftSidebar.displayName = 'LeftSidebar';
  */
 export const MainLayout: React.FC = () => {
     useSessionListSync({ isVSCode: false });
+    usePaletteShortcuts();
     useTerminalSessionKeepalive();
     // The grant dialog of isolated spaces; the main layout is never VS Code's (decision 16).
     const isolatedSpacesEnabled = useUIStore((state) => state.isolatedSpacesEnabled);
@@ -166,6 +169,7 @@ export const MainLayout: React.FC = () => {
         };
     }, []);
     const { isMobile } = useDeviceInfo();
+    useGuestUpdateNotice();
 
 
 

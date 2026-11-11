@@ -9,9 +9,12 @@ Update this file in the same commit as the change it describes.
 
 ## Stable upstream sync
 
-Integrated upstream v2.6.1. Preserve the fork's removed self-update and usage
+Integrated upstream v2.7.0. Preserve the fork's removed self-update and usage
 reporting flows, automatic usage-limit retry, and release artifact workflows.
 New upstream tests for the removed update store are intentionally excluded.
+The v2.7.0 sync keeps mobile browser Back handling and native menu shortcut
+customization without restoring update checks. Combined uncommitted diffs keep
+hunk mutations disabled while using upstream's file-version diff eligibility.
 The v2.6.1 sync also removes update-channel settings and telemetry from the
 relocated General settings. Keep upstream's failover, review, and workflow
 runtimes alongside the fork's retry scheduler. Preserve combined uncommitted
@@ -389,3 +392,10 @@ updated to 1.4.2 during the v2.1.0 sync.
 
 **On conflict.** Keep the artifact publication workflow and match upstream's
 package manager version. Use GitHub-hosted runners for fork push builds.
+
+## 9. Canary builds disabled
+
+Disable the Canary workflow in this fork's GitHub Actions settings. Nightly
+upstream-style builds are unnecessary here; signed Android APKs and web artifact
+images continue to publish on main pushes. Keep the upstream workflow file for
+clean merges, and preserve its disabled state during future syncs.
